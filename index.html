@@ -253,32 +253,10 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
     </div>
     <div class="nav-divider"></div>
     <div class="nav-section">
-      <span class="nav-label">Categories</span>
-      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Work')">
-        <span class="cat-dot" style="background:#3ecf8e"></span><span class="nav-name">Work</span><span class="nav-count" id="cnt-work">0</span>
-      </div>
-      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Finance')">
-        <span class="cat-dot" style="background:#f7c948"></span><span class="nav-name">Finance</span><span class="nav-count" id="cnt-fin">0</span>
-      </div>
-      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Social')">
-        <span class="cat-dot" style="background:#4f8ef7"></span><span class="nav-name">Social</span><span class="nav-count" id="cnt-soc">0</span>
-      </div>
-      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Newsletters')">
-        <span class="cat-dot" style="background:#7c5cfc"></span><span class="nav-name">Newsletters</span><span class="nav-count" id="cnt-news">0</span>
-      </div>
-      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Travel')">
-        <span class="cat-dot" style="background:#00c8dc"></span><span class="nav-name">Travel</span><span class="nav-count" id="cnt-trav">0</span>
-      </div>
-      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Spam')">
-        <span class="cat-dot" style="background:#f75f5f"></span><span class="nav-name">Spam</span><span class="nav-count" id="cnt-spam">0</span>
-      </div>
+      <span class="nav-label" id="categoryLabel">Categories</span>
     </div>
-    <div class="nav-divider"></div>
-    <div class="nav-section">
-      <span class="nav-label">AI Labels</span>
-    </div>
-    <div class="label-stack" id="aiLabelList">
-      <div class="label-desc">Run AI Organize to generate custom inbox labels.</div>
+    <div class="label-stack" id="categoryList">
+      <div class="label-desc">Default categories appear here until AI generates your custom system.</div>
     </div>
     <div class="nav-divider"></div>
     <div class="nav-section">
@@ -586,7 +564,7 @@ async function api(path, payload) {
 
   hydrateForm();
   updateCounts();
-  renderAILabels();
+  renderCategories();
 
   try {
     const response = await fetch(API_BASE + "/api/health");
@@ -779,7 +757,7 @@ async function saveConn() {
     document.getElementById("statusDot").classList.add("on");
     document.getElementById("statusLabel").textContent = `${cfg.email} · ${S.emails.length} emails`;
     updateCounts();
-    renderAILabels();
+    renderCategories();
     renderStrategyPreview();
     renderList();
     renderDetail(null);
@@ -816,7 +794,7 @@ async function syncEmails() {
       renderDetail(S.emails.find((email) => email.id === currentOpenId));
     }
     updateCounts();
-    renderAILabels();
+    renderCategories();
     renderStrategyPreview();
     renderList();
     progress(100);
@@ -834,6 +812,7 @@ function getFilteredEmails() {
     else if (S.filter === "unread") emails = emails.filter((e) => e.unread);
     else if (S.filter === "Spam") emails = emails.filter((e) => e.spam);
     else if (String(S.filter).startsWith("label:")) emails = emails.filter((e) => e.aiLabel === String(S.filter).slice(6));
+    else if (S.aiLabels.length) emails = emails.filter((e) => e.aiLabel === S.filter);
     else emails = emails.filter((e) => e.cat === S.filter);
   }
 
@@ -973,7 +952,7 @@ async function applyStrategy() {
     S.aiStrategy = data.strategy || "";
     S.aiProcessingSummary = data.processingSummary || "";
     S.aiSummarySections = data.summarySections || [];
-    renderAILabels();
+    renderCategories();
     renderStrategyPreview();
     progress(100);
     showBanner(data.processingSummary || "Strategy generated.");
@@ -1026,7 +1005,7 @@ async function runAI() {
     });
 
     updateCounts();
-    renderAILabels();
+    renderCategories();
     renderList();
     if (S.openId) {
       renderDetail(S.emails.find((email) => email.id === S.openId) || null);
@@ -1137,7 +1116,10 @@ async function genBrief() {
   const starred = S.emails.filter((e) => e.star).length;
   const spam = S.emails.filter((e) => e.spam).length;
   const cats = {};
-  S.emails.forEach((e) => { cats[e.cat] = (cats[e.cat] || 0) + 1; });
+  S.emails.forEach((e) => {
+    const key = S.aiLabels.length ? (e.aiLabel || "Unassigned") : e.cat;
+    cats[key] = (cats[key] || 0) + 1;
+  });
 
   let aiText = `You have ${unread} unread emails, ${starred} starred items, and ${spam} suspicious messages. Start with starred Work and Finance items first.`;
 
@@ -1194,7 +1176,7 @@ async function genBrief() {
       </div>
       <div>
         <div class="bcard">
-          <div class="bcard-h">📂 By category</div>
+          <div class="bcard-h">📂 ${S.aiLabels.length ? "By AI category" : "By category"}</div>
           <div class="bcard-b">
             ${Object.entries(cats).map(([c, n]) => `<div class="crow"><span class="cat-dot" style="background:${catColor(c)}"></span>${x(c)}<span class="crow-n">${n}</span></div>`).join("")}
           </div>
@@ -1206,7 +1188,9 @@ async function genBrief() {
 }
 
 function catColor(c) {
-  return { Work: "#3ecf8e", Finance: "#f7c948", Social: "#4f8ef7", Newsletters: "#7c5cfc", Travel: "#00c8dc", Spam: "#f75f5f" }[c] || "#888";
+  const aiMatch = S.aiLabels.find((label) => label.name === c);
+  if (aiMatch?.color) return aiMatch.color;
+  return { Work: "#3ecf8e", Finance: "#f7c948", Social: "#4f8ef7", Newsletters: "#7c5cfc", Travel: "#00c8dc", Spam: "#f75f5f", Unassigned: "#888888" }[c] || "#888";
 }
 
 async function delSpam() {
@@ -1255,34 +1239,53 @@ function updateCounts() {
   document.getElementById("cnt-all").textContent = e.length;
   document.getElementById("cnt-star").textContent = e.filter((x) => x.star).length;
   document.getElementById("cnt-unread").textContent = e.filter((x) => x.unread).length;
-  document.getElementById("cnt-work").textContent = e.filter((x) => x.cat === "Work").length;
-  document.getElementById("cnt-fin").textContent = e.filter((x) => x.cat === "Finance").length;
-  document.getElementById("cnt-soc").textContent = e.filter((x) => x.cat === "Social").length;
-  document.getElementById("cnt-news").textContent = e.filter((x) => x.cat === "Newsletters").length;
-  document.getElementById("cnt-trav").textContent = e.filter((x) => x.cat === "Travel").length;
-  document.getElementById("cnt-spam").textContent = e.filter((x) => x.spam).length;
   if (S.connected && S.cfg.email) {
     document.getElementById("statusLabel").textContent = `${S.cfg.email} · ${e.length} emails`;
   }
 }
 
-function renderAILabels() {
-  const root = document.getElementById("aiLabelList");
-  if (!root) return;
+function renderCategories() {
+  const root = document.getElementById("categoryList");
+  const title = document.getElementById("categoryLabel");
+  if (!root || !title) return;
 
-  if (!S.aiLabels.length) {
-    root.innerHTML = `<div class="label-desc">Run AI Organize to generate custom inbox labels.</div>`;
+  if (S.aiLabels.length) {
+    title.textContent = "AI Categories";
+    root.innerHTML = S.aiLabels.map((label) => {
+      const count = S.emails.filter((email) => email.aiLabel === label.name).length;
+      return `
+        <div class="label-item" onclick="goPanel('inbox',document.getElementById('nav-inbox'));setFilter('label:${jsq(label.name)}')">
+          <span class="label-swatch" style="background:${x(label.color || "#4f8ef7")}"></span>
+          <div class="label-meta">
+            <div class="label-name">${x(label.name)}</div>
+            <div class="label-desc">${x(label.description || "AI-generated category")}</div>
+          </div>
+          <span class="nav-count">${count}</span>
+        </div>
+      `;
+    }).join("");
     return;
   }
 
-  root.innerHTML = S.aiLabels.map((label) => {
-    const count = S.emails.filter((email) => email.aiLabel === label.name).length;
+  title.textContent = "Categories";
+  const fallback = [
+    { name: "Work", color: "#3ecf8e" },
+    { name: "Finance", color: "#f7c948" },
+    { name: "Social", color: "#4f8ef7" },
+    { name: "Newsletters", color: "#7c5cfc" },
+    { name: "Travel", color: "#00c8dc" },
+    { name: "Spam", color: "#f75f5f" }
+  ];
+  root.innerHTML = fallback.map((item) => {
+    const count = item.name === "Spam"
+      ? S.emails.filter((email) => email.spam).length
+      : S.emails.filter((email) => email.cat === item.name).length;
     return `
-      <div class="label-item" onclick="goPanel('inbox',document.getElementById('nav-inbox'));setFilter('label:${jsq(label.name)}')">
-        <span class="label-swatch" style="background:${x(label.color || "#4f8ef7")}"></span>
+      <div class="label-item" onclick="goPanel('inbox',document.getElementById('nav-inbox'));setFilter('${jsq(item.name)}')">
+        <span class="label-swatch" style="background:${item.color}"></span>
         <div class="label-meta">
-          <div class="label-name">${x(label.name)}</div>
-          <div class="label-desc">${x(label.description || "AI-generated label")}</div>
+          <div class="label-name">${x(item.name)}</div>
+          <div class="label-desc">${item.name === "Spam" ? "Default spam detection" : "Default pre-AI category"}</div>
         </div>
         <span class="nav-count">${count}</span>
       </div>
