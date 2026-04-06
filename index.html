@@ -85,7 +85,9 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 .fgroup:last-child { margin-bottom:0; }
 .fgroup label { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
 .fgroup input, .fgroup select { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:6px; font-family:var(--mono); font-size:12px; background:var(--bg); color:var(--text); outline:none; transition:border-color .15s; }
+.fgroup textarea { width:100%; min-height:128px; padding:11px 12px; border:1px solid var(--border); border-radius:6px; font-family:var(--mono); font-size:12px; background:var(--bg); color:var(--text); outline:none; transition:border-color .15s; resize:vertical; line-height:1.7; }
 .fgroup input:focus, .fgroup select:focus { border-color:var(--accent); }
+.fgroup textarea:focus { border-color:var(--accent); }
 .fgroup select option { background:var(--surface); }
 .frow { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .hint { font-size:11px; color:var(--muted); margin-top:5px; line-height:1.5; font-family:var(--mono); }
@@ -178,6 +180,28 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 
 .ai-banner { background:rgba(79,142,247,.07); border:1px solid rgba(79,142,247,.18); border-radius:8px; padding:12px 16px; margin:10px 14px; font-size:12px; line-height:1.7; color:#a0bef8; }
 .ai-banner-lbl { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
+.prompt-examples { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; }
+.prompt-chip { padding:6px 10px; border:1px solid var(--border); border-radius:999px; background:rgba(255,255,255,.04); color:var(--muted); font-size:11px; cursor:pointer; transition:all .15s; }
+.prompt-chip:hover { color:var(--text); border-color:var(--border2); }
+.step-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:14px; }
+.strategy-card { background:rgba(79,142,247,.06); border:1px solid rgba(79,142,247,.18); border-radius:8px; padding:14px 16px; margin-top:14px; }
+.strategy-title { font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+.strategy-text { font-size:12px; line-height:1.7; color:#a0bef8; margin-bottom:10px; }
+.strategy-list { display:flex; flex-direction:column; gap:6px; color:var(--text); font-size:12px; }
+.strategy-list div { padding-left:14px; position:relative; line-height:1.6; }
+.strategy-list div::before { content:"•"; position:absolute; left:0; color:var(--accent); }
+.label-stack { padding:8px 12px 14px; display:flex; flex-direction:column; gap:6px; }
+.label-item { display:flex; align-items:center; gap:9px; padding:8px; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,.02); cursor:pointer; transition:all .15s; }
+.label-item:hover { background:var(--surface2); border-color:var(--border2); }
+.label-swatch { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.label-meta { flex:1; min-width:0; }
+.label-name { font-size:12px; color:var(--text); margin-bottom:2px; }
+.label-desc { font-size:10px; color:var(--muted); line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ai-badge { background:rgba(79,142,247,.12); color:#9dc0ff; border:1px solid rgba(79,142,247,.18); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:9px; }
+.priority-pill { font-family:var(--mono); font-size:9px; padding:1px 5px; border-radius:3px; border:1px solid transparent; text-transform:uppercase; }
+.priority-high { color:#f75f5f; border-color:rgba(247,95,95,.3); background:rgba(247,95,95,.08); }
+.priority-medium { color:#f7c948; border-color:rgba(247,201,72,.25); background:rgba(247,201,72,.08); }
+.priority-low { color:#3ecf8e; border-color:rgba(62,207,142,.25); background:rgba(62,207,142,.08); }
 
 .toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:11px 16px; border-radius:8px; font-size:12px; z-index:999; transform:translateY(60px); opacity:0; transition:all .25s ease; display:flex; align-items:center; gap:8px; max-width:320px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
 .toast.show { transform:none; opacity:1; }
@@ -251,6 +275,13 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
     </div>
     <div class="nav-divider"></div>
     <div class="nav-section">
+      <span class="nav-label">AI Labels</span>
+    </div>
+    <div class="label-stack" id="aiLabelList">
+      <div class="label-desc">Run AI Organize to generate custom inbox labels.</div>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-section">
       <div class="nav-item" id="nav-brief" onclick="goPanel('brief',this)">
         <span class="nav-icon">📰</span><span class="nav-name">Daily Brief</span>
       </div>
@@ -266,7 +297,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
     <div class="panel active" id="panel-setup">
       <div class="panel-header">
         <span class="panel-title">Settings</span>
-        <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Connection</button>
         <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Save &amp; Connect</button>
       </div>
       <div class="setup-body">
@@ -306,31 +336,66 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                 <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
               </div>
               <div class="info-box" id="provHint"></div>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">3</span> AI auth & model</div>
+            <div class="step-body">
+              <div class="frow">
+                <div class="fgroup">
+                  <label>AI Provider</label>
+                  <select id="aiProvider" onchange="onAIProviderChange(this.value)">
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="kimi">Kimi</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="qwen">Qwen</option>
+                  </select>
+                </div>
+                <div class="fgroup">
+                  <label>Model</label>
+                  <select id="aiModel"></select>
+                </div>
+              </div>
+              <div class="fgroup">
+                <label>API Key</label>
+                <input type="password" id="aiKey" placeholder="Paste provider API key">
+                <p class="hint" id="aiHint">Used for summaries, strategy generation, and inbox analysis. Stored locally only in this browser.</p>
+              </div>
+              <div class="step-actions">
+                <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Connection</button>
+              </div>
               <div class="test-result" id="testResult"></div>
             </div>
           </div>
 
           <div class="step-card">
-            <div class="step-head"><span class="step-num">3</span> OpenAI API Key</div>
+            <div class="step-head"><span class="step-num">4</span> AI prompt layer</div>
             <div class="step-body">
               <div class="fgroup">
-                <label>API Key</label>
-                <input type="password" id="openaiKey" placeholder="sk-...">
-                <p class="hint">Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a> — used for AI classification &amp; summaries, stored locally only.</p>
-              </div>
-              <div class="fgroup">
-                <label>Model</label>
-                <select id="aiModel">
-                  <option value="gpt-4o">gpt-4o (recommended)</option>
-                  <option value="gpt-4o-mini">gpt-4o-mini (faster / cheaper)</option>
-                  <option value="gpt-4-turbo">gpt-4-turbo</option>
-                </select>
+                <label>How should AI organize your inbox?</label>
+                <textarea id="aiPrompt" placeholder="Example: Create labels for client work, invoices, urgent follow-ups, travel, and low-priority newsletters. Star anything that needs a reply within 24 hours. Keep founders and paying customers easy to spot."></textarea>
+                <p class="hint">This prompt becomes your inbox policy. AI will use it to propose labels, assign every email to one label, and explain why.</p>
+                <div class="prompt-examples">
+                  <button type="button" class="prompt-chip" onclick="usePromptExample('Keep my inbox split into founders, paying customers, product alerts, invoices, and low-priority newsletters. Flag anything needing a response this week.')">Startup founder</button>
+                  <button type="button" class="prompt-chip" onclick="usePromptExample('Group mail into family, travel, bills, shopping, school, and promotional clutter. Make urgent deadlines obvious.')">Personal life</button>
+                  <button type="button" class="prompt-chip" onclick="usePromptExample('Organize by recruiting, interviews, offers, networking, learning, and noise. Surface emails that require follow-up in the next 3 days.')">Job search</button>
+                </div>
+                <div class="step-actions">
+                  <button class="btn btn-primary btn-sm" onclick="applyStrategy()" id="btnApplyStrategy">Apply</button>
+                </div>
+                <div class="strategy-card" id="strategyPreview" style="display:none">
+                  <div class="strategy-title">Generated Strategy</div>
+                  <div class="strategy-text" id="strategyText"></div>
+                  <div class="strategy-list" id="strategyList"></div>
+                </div>
               </div>
             </div>
           </div>
 
           <div class="step-card">
-            <div class="step-head"><span class="step-num">4</span> Fetch settings</div>
+            <div class="step-head"><span class="step-num">5</span> Fetch settings</div>
             <div class="step-body">
               <div class="frow">
                 <div class="fgroup">
@@ -383,7 +448,8 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
       <div class="panel-header">
         <span class="panel-title" id="inboxTitle">Inbox</span>
         <button class="btn btn-sm" onclick="syncEmails()">↻ Sync</button>
-        <button class="btn btn-primary btn-sm" onclick="runAI()">✦ AI Analyze</button>
+        <button class="btn btn-primary btn-sm" onclick="runAI()">✦ Start Analyze</button>
+        <button class="btn btn-sm" onclick="createMailboxLabels()">＋ Create Mailbox Labels</button>
         <button class="btn btn-danger btn-sm" onclick="deleteSel()">🗑 Delete selected</button>
       </div>
       <div class="inbox-body">
@@ -441,6 +507,40 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 
 <script>
 const API_BASE = location.protocol === "file:" ? "http://localhost:3030" : "";
+const AI_MODELS = {
+  openai: [
+    { value: "gpt-4o", label: "gpt-4o" },
+    { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+    { value: "gpt-4.1-mini", label: "gpt-4.1-mini" }
+  ],
+  anthropic: [
+    { value: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet" },
+    { value: "claude-3-7-sonnet-latest", label: "Claude 3.7 Sonnet" },
+    { value: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku" }
+  ],
+  kimi: [
+    { value: "kimi-k2-0711-preview", label: "Kimi K2" },
+    { value: "moonshot-v1-8k", label: "Moonshot v1 8k" },
+    { value: "moonshot-v1-32k", label: "Moonshot v1 32k" }
+  ],
+  deepseek: [
+    { value: "deepseek-chat", label: "DeepSeek Chat" },
+    { value: "deepseek-reasoner", label: "DeepSeek Reasoner" }
+  ],
+  qwen: [
+    { value: "qwen-max", label: "Qwen Max" },
+    { value: "qwen-plus", label: "Qwen Plus" },
+    { value: "qwen-turbo", label: "Qwen Turbo" }
+  ]
+};
+
+const AI_HINTS = {
+  openai: 'Use an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a>.',
+  anthropic: 'Use an Anthropic API key from <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.',
+  kimi: 'Use a Kimi / Moonshot API key from the Moonshot platform console.',
+  deepseek: 'Use a DeepSeek API key from the DeepSeek platform console.',
+  qwen: 'Use a Qwen-compatible DashScope API key from Alibaba Cloud DashScope.'
+};
 
 const S = {
   connected: false,
@@ -450,7 +550,12 @@ const S = {
   filter: null,
   openId: null,
   cfg: {},
-  search: ""
+  search: "",
+  aiLabels: [],
+  aiSummary: "",
+  aiStrategy: "",
+  aiProcessingSummary: "",
+  aiSummarySections: []
 };
 
 async function api(path, payload) {
@@ -481,6 +586,7 @@ async function api(path, payload) {
 
   hydrateForm();
   updateCounts();
+  renderAILabels();
 
   try {
     const response = await fetch(API_BASE + "/api/health");
@@ -495,12 +601,15 @@ async function api(path, payload) {
 function hydrateForm() {
   document.getElementById("emailAddr").value = S.cfg.email || "";
   document.getElementById("emailPass").value = S.cfg.pass || "";
-  document.getElementById("openaiKey").value = S.cfg.okey || "";
-  if (S.cfg.model) document.getElementById("aiModel").value = S.cfg.model;
+  document.getElementById("aiProvider").value = S.cfg.aiProvider || "openai";
+  populateModelOptions(S.cfg.aiProvider || "openai", S.cfg.aiModel || S.cfg.model);
+  document.getElementById("aiKey").value = S.cfg.aiKey || S.cfg.okey || "";
   if (S.cfg.count) document.getElementById("fetchCount").value = S.cfg.count;
   if (S.cfg.folder) document.getElementById("mailFolder").value = S.cfg.folder;
   if (S.cfg.imapHost) document.getElementById("imapHost").value = S.cfg.imapHost;
   if (S.cfg.imapPort) document.getElementById("imapPort").value = S.cfg.imapPort;
+  if (S.cfg.aiPrompt) document.getElementById("aiPrompt").value = S.cfg.aiPrompt;
+  updateAIHint(S.cfg.aiProvider || "openai");
 
   if (S.cfg.prov) {
     document.querySelectorAll(".provider-tile").forEach((tile) => {
@@ -519,12 +628,14 @@ function readCfgFromForm() {
     prov: S.cfg.prov,
     email: document.getElementById("emailAddr").value.trim(),
     pass: document.getElementById("emailPass").value.trim(),
-    okey: document.getElementById("openaiKey").value.trim(),
-    model: document.getElementById("aiModel").value,
+    aiProvider: document.getElementById("aiProvider").value,
+    aiKey: document.getElementById("aiKey").value.trim(),
+    aiModel: document.getElementById("aiModel").value,
     count: document.getElementById("fetchCount").value,
     folder: document.getElementById("mailFolder").value,
     imapHost: document.getElementById("imapHost").value.trim(),
-    imapPort: document.getElementById("imapPort").value.trim()
+    imapPort: document.getElementById("imapPort").value.trim(),
+    aiPrompt: document.getElementById("aiPrompt").value.trim()
   };
 }
 
@@ -540,6 +651,13 @@ function requireCfg() {
   if (!cfg.email) throw new Error("Please enter your email address.");
   if (!cfg.pass) throw new Error("Please enter your app password.");
   if (cfg.prov === "custom" && !cfg.imapHost) throw new Error("Please enter the custom IMAP host.");
+  return cfg;
+}
+
+function requireAICfg() {
+  const cfg = requireCfg();
+  if (!cfg.aiKey) throw new Error("Please enter your AI API key.");
+  if (!cfg.aiModel) throw new Error("Please choose an AI model.");
   return cfg;
 }
 
@@ -559,8 +677,28 @@ function setFilter(f) {
   S.openId = null;
   renderDetail(null);
   const m = { starred: "Starred", unread: "Unread", Work: "Work", Finance: "Finance", Social: "Social", Newsletters: "Newsletters", Travel: "Travel", Spam: "Spam" };
-  document.getElementById("inboxTitle").textContent = m[f] || f;
+  document.getElementById("inboxTitle").textContent = m[f] || (String(f || "").startsWith("label:") ? String(f).slice(6) : f);
   renderList();
+}
+
+function usePromptExample(value) {
+  document.getElementById("aiPrompt").value = value;
+}
+
+function populateModelOptions(provider, selectedValue) {
+  const select = document.getElementById("aiModel");
+  const models = AI_MODELS[provider] || AI_MODELS.openai;
+  select.innerHTML = models.map((model) => `<option value="${x(model.value)}">${x(model.label)}</option>`).join("");
+  select.value = models.some((model) => model.value === selectedValue) ? selectedValue : models[0].value;
+}
+
+function updateAIHint(provider) {
+  document.getElementById("aiHint").innerHTML = AI_HINTS[provider] || AI_HINTS.openai;
+}
+
+function onAIProviderChange(provider) {
+  populateModelOptions(provider);
+  updateAIHint(provider);
 }
 
 function pickProv(key, el) {
@@ -631,11 +769,18 @@ async function saveConn() {
     const data = await api("/api/emails/sync", cfg);
     S.connected = true;
     S.emails = data.emails || [];
+    S.aiLabels = [];
+    S.aiSummary = "";
+    S.aiStrategy = "";
+    S.aiProcessingSummary = "";
+    S.aiSummarySections = [];
     S.openId = null;
     S.sel.clear();
     document.getElementById("statusDot").classList.add("on");
     document.getElementById("statusLabel").textContent = `${cfg.email} · ${S.emails.length} emails`;
     updateCounts();
+    renderAILabels();
+    renderStrategyPreview();
     renderList();
     renderDetail(null);
     progress(100);
@@ -658,6 +803,11 @@ async function syncEmails() {
     const currentOpenId = S.openId;
     const data = await api("/api/emails/sync", cfg);
     S.emails = data.emails || [];
+    S.aiLabels = [];
+    S.aiSummary = "";
+    S.aiStrategy = "";
+    S.aiProcessingSummary = "";
+    S.aiSummarySections = [];
     S.view = [];
     if (!S.emails.some((email) => email.id === currentOpenId)) {
       S.openId = null;
@@ -666,6 +816,8 @@ async function syncEmails() {
       renderDetail(S.emails.find((email) => email.id === currentOpenId));
     }
     updateCounts();
+    renderAILabels();
+    renderStrategyPreview();
     renderList();
     progress(100);
     toast("✓", `Synced ${S.emails.length} emails`);
@@ -681,6 +833,7 @@ function getFilteredEmails() {
     if (S.filter === "starred") emails = emails.filter((e) => e.star);
     else if (S.filter === "unread") emails = emails.filter((e) => e.unread);
     else if (S.filter === "Spam") emails = emails.filter((e) => e.spam);
+    else if (String(S.filter).startsWith("label:")) emails = emails.filter((e) => e.aiLabel === String(S.filter).slice(6));
     else emails = emails.filter((e) => e.cat === S.filter);
   }
 
@@ -714,6 +867,8 @@ function renderList() {
         <div class="erow-prev">${x((e.prev || "").substring(0, 90))}${(e.prev || "").length > 90 ? "…" : ""}</div>
         <div class="erow-tags">
           <span class="etag etag-${cc(e.cat)}">${x(e.cat)}</span>
+          ${e.aiLabel ? `<span class="ai-badge">${x(e.aiLabel)}</span>` : ""}
+          ${e.aiPriority ? `<span class="priority-pill priority-${x(e.aiPriority)}">${x(e.aiPriority)}</span>` : ""}
           ${e.star ? '<span class="etag etag-star">★ starred</span>' : ""}
           ${e.spam ? '<span class="etag etag-spam">⚠ spam</span>' : ""}
         </div>
@@ -749,9 +904,12 @@ function renderDetail(email) {
     <div class="d-meta">
       <span>${x(email.addr || "")}</span><span>·</span><span>${x(email.date || "")}</span><span>·</span>
       <span class="etag etag-${cc(email.cat)}" style="font-size:10px">${x(email.cat)}</span>
+      ${email.aiLabel ? `<span class="ai-badge">${x(email.aiLabel)}</span>` : ""}
+      ${email.aiPriority ? `<span class="priority-pill priority-${x(email.aiPriority)}">${x(email.aiPriority)}</span>` : ""}
       ${email.star ? '<span class="etag etag-star" style="font-size:10px">★ starred</span>' : ""}
     </div>
     <div class="d-body">${x(email.body || email.prev || "(No body available)")}</div>
+    ${email.aiReason ? `<div class="d-ai" style="display:block;margin-bottom:16px"><div class="d-ai-lbl">AI Organizing Note</div><div class="d-ai-txt">${x(email.aiReason)}</div></div>` : ""}
     <div class="d-ai" id="aiBox" style="display:none">
       <div class="d-ai-lbl">AI Summary</div>
       <div class="d-ai-txt" id="aiTxt">Analyzing…</div>
@@ -766,7 +924,7 @@ function renderDetail(email) {
 
 async function summarize(id) {
   const email = S.emails.find((item) => item.id === id);
-  if (!email || !S.cfg.okey) return toast("⚠", "Add your OpenAI key in Settings");
+  if (!email || !(S.cfg.aiKey || S.cfg.okey)) return toast("⚠", "Add your AI key in Settings");
 
   const box = document.getElementById("aiBox");
   const txt = document.getElementById("aiTxt");
@@ -777,8 +935,9 @@ async function summarize(id) {
 
   try {
     const data = await api("/api/ai/summarize", {
-      apiKey: S.cfg.okey,
-      model: S.cfg.model,
+      provider: S.cfg.aiProvider || "openai",
+      apiKey: S.cfg.aiKey || S.cfg.okey,
+      model: S.cfg.aiModel || S.cfg.model,
       email
     });
     txt.textContent = data.summary || "No summary returned.";
@@ -787,22 +946,96 @@ async function summarize(id) {
   }
 }
 
-async function runAI() {
+async function applyStrategy() {
   if (!S.connected) return toast("⚠", "Connect your mailbox first");
-  if (!S.cfg.okey) return toast("⚠", "Add your OpenAI key in Settings");
 
-  toast("✦", "Running inbox analysis…");
+  let cfg;
+  try {
+    cfg = requireAICfg();
+  } catch (error) {
+    return toast("⚠", error.message);
+  }
+
+  if (!cfg.aiPrompt) return toast("⚠", "Write your inbox instruction first");
+
+  document.getElementById("btnApplyStrategy").disabled = true;
+  toast("✦", "Generating strategy from your instruction…");
   progress(45);
 
   try {
-    const data = await api("/api/ai/brief", {
-      apiKey: S.cfg.okey,
-      model: S.cfg.model,
+    const data = await api("/api/ai/strategy", {
+      provider: cfg.aiProvider,
+      apiKey: cfg.aiKey,
+      model: cfg.aiModel,
+      prompt: cfg.aiPrompt,
       emails: S.emails
     });
+
+    S.aiLabels = data.labels || [];
+    S.aiStrategy = data.strategy || "";
+    S.aiProcessingSummary = data.processingSummary || "";
+    S.aiSummarySections = data.summarySections || [];
+    renderAILabels();
+    renderStrategyPreview();
     progress(100);
-    showBanner(data.brief || "Analysis complete.");
-    toast("✦", "Analysis done");
+    showBanner(data.processingSummary || "Strategy generated.");
+    toast("✦", "Strategy ready");
+  } catch (error) {
+    progress(100);
+    toast("✗", error.message);
+  } finally {
+    document.getElementById("btnApplyStrategy").disabled = false;
+  }
+}
+
+async function runAI() {
+  if (!S.connected) return toast("⚠", "Connect your mailbox first");
+
+  let cfg;
+  try {
+    cfg = requireAICfg();
+  } catch (error) {
+    return toast("⚠", error.message);
+  }
+
+  if (!S.aiStrategy || !S.aiLabels.length) return toast("⚠", "Click Apply first to generate a strategy");
+
+  toast("✦", "Analyzing emails with your approved strategy…");
+  progress(45);
+
+  try {
+    const data = await api("/api/ai/organize", {
+      provider: cfg.aiProvider,
+      apiKey: cfg.aiKey,
+      model: cfg.aiModel,
+      prompt: cfg.aiPrompt,
+      strategy: S.aiStrategy,
+      labels: S.aiLabels,
+      emails: S.emails
+    });
+
+    const assignments = new Map((data.assignments || []).map((item) => [item.uid, item]));
+    S.aiSummary = data.summary || "";
+    S.emails = S.emails.map((email) => {
+      const assignment = assignments.get(email.uid);
+      if (!assignment) return { ...email, aiLabel: "", aiReason: "", aiPriority: "" };
+      return {
+        ...email,
+        aiLabel: assignment.label,
+        aiReason: assignment.reason,
+        aiPriority: assignment.priority
+      };
+    });
+
+    updateCounts();
+    renderAILabels();
+    renderList();
+    if (S.openId) {
+      renderDetail(S.emails.find((email) => email.id === S.openId) || null);
+    }
+    progress(100);
+    showBanner(data.summary || S.aiProcessingSummary || "Analysis complete.");
+    toast("✦", "Analysis complete");
   } catch (error) {
     progress(100);
     toast("✗", error.message);
@@ -910,11 +1143,12 @@ async function genBrief() {
 
   let aiText = `You have ${unread} unread emails, ${starred} starred items, and ${spam} suspicious messages. Start with starred Work and Finance items first.`;
 
-  if (S.cfg.okey) {
+  if (S.cfg.aiKey || S.cfg.okey) {
     try {
       const data = await api("/api/ai/brief", {
-        apiKey: S.cfg.okey,
-        model: S.cfg.model,
+        provider: S.cfg.aiProvider || "openai",
+        apiKey: S.cfg.aiKey || S.cfg.okey,
+        model: S.cfg.aiModel || S.cfg.model,
         emails: S.emails
       });
       aiText = data.brief || aiText;
@@ -993,6 +1227,23 @@ async function delSpam() {
   }
 }
 
+async function createMailboxLabels() {
+  if (!S.connected) return toast("⚠", "Connect your mailbox first");
+  if (!S.aiLabels.length) return toast("⚠", "Run AI Organize first so labels exist");
+
+  try {
+    const cfg = requireCfg();
+    const data = await api("/api/mailboxes/create-labels", {
+      cfg,
+      labels: S.aiLabels.map((label) => label.name)
+    });
+    const createdCount = (data.created || []).length;
+    toast("✓", createdCount ? `Created ${createdCount} mailbox label(s)` : "Mailbox labels already existed");
+  } catch (error) {
+    toast("✗", error.message);
+  }
+}
+
 function exportBrief() {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([document.getElementById("briefBody").innerText], { type: "text/plain" }));
@@ -1017,8 +1268,59 @@ function updateCounts() {
   }
 }
 
+function renderAILabels() {
+  const root = document.getElementById("aiLabelList");
+  if (!root) return;
+
+  if (!S.aiLabels.length) {
+    root.innerHTML = `<div class="label-desc">Run AI Organize to generate custom inbox labels.</div>`;
+    return;
+  }
+
+  root.innerHTML = S.aiLabels.map((label) => {
+    const count = S.emails.filter((email) => email.aiLabel === label.name).length;
+    return `
+      <div class="label-item" onclick="goPanel('inbox',document.getElementById('nav-inbox'));setFilter('label:${jsq(label.name)}')">
+        <span class="label-swatch" style="background:${x(label.color || "#4f8ef7")}"></span>
+        <div class="label-meta">
+          <div class="label-name">${x(label.name)}</div>
+          <div class="label-desc">${x(label.description || "AI-generated label")}</div>
+        </div>
+        <span class="nav-count">${count}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderStrategyPreview() {
+  const card = document.getElementById("strategyPreview");
+  const text = document.getElementById("strategyText");
+  const list = document.getElementById("strategyList");
+  if (!card || !text || !list) return;
+
+  if (!S.aiStrategy) {
+    card.style.display = "none";
+    text.textContent = "";
+    list.innerHTML = "";
+    return;
+  }
+
+  card.style.display = "block";
+  text.textContent = S.aiStrategy;
+  const items = [
+    S.aiProcessingSummary,
+    ...S.aiLabels.map((label) => `Label: ${label.name} — ${label.description || "AI-generated grouping"}`),
+    ...S.aiSummarySections
+  ].filter(Boolean);
+  list.innerHTML = items.map((item) => `<div>${x(item)}</div>`).join("");
+}
+
 function x(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function jsq(s) {
+  return String(s ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 function progress(p) {

@@ -29,6 +29,29 @@ const PROVIDERS = {
   "163": { host: "imap.163.com", port: 993, secure: true, folder: "INBOX" }
 };
 
+const AI_PROVIDERS = {
+  openai: {
+    kind: "openai",
+    baseUrl: "https://api.openai.com/v1"
+  },
+  anthropic: {
+    kind: "anthropic",
+    baseUrl: "https://api.anthropic.com/v1"
+  },
+  kimi: {
+    kind: "openai",
+    baseUrl: "https://api.moonshot.ai/v1"
+  },
+  deepseek: {
+    kind: "openai",
+    baseUrl: "https://api.deepseek.com/v1"
+  },
+  qwen: {
+    kind: "openai",
+    baseUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+  }
+};
+
 function resolveImapConfig(cfg = {}) {
   const preset = PROVIDERS[cfg.prov] || {};
   const host = cfg.imapHost || preset.host;
@@ -98,6 +121,97 @@ function isSpam({ from, subject, text }) {
   return categorizeEmail({ from, subject, text }) === "Spam";
 }
 
+function extractJsonBlock(value = "") {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    throw new Error("The AI response was empty.");
+  }
+
+  const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return fenceMatch ? fenceMatch[1].trim() : trimmed;
+}
+
+function normalizeLabelName(value = "") {
+  return String(value || "")
+    .replace(/[\\/*"%<>?|:#]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 40);
+}
+
+function resolveAIConfig({ provider, apiKey, model }) {
+  const resolved = AI_PROVIDERS[provider || "openai"] || AI_PROVIDERS.openai;
+  if (!apiKey) {
+    throw new Error("Missing AI API key.");
+  }
+
+  return {
+    provider: provider || "openai",
+    kind: resolved.kind,
+    baseUrl: resolved.baseUrl,
+    apiKey,
+    model
+  };
+}
+
+async function callAI({ provider, apiKey, model, maxTokens, messages, responseFormat }) {
+  const cfg = resolveAIConfig({ provider, apiKey, model });
+
+  if (cfg.kind === "anthropic") {
+    const systemParts = messages.filter((message) => message.role === "system").map((message) => message.content).filter(Boolean);
+    const userParts = messages.filter((message) => message.role !== "system");
+    const response = await fetch(`${cfg.baseUrl}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": cfg.apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: cfg.model || "claude-3-5-sonnet-latest",
+        max_tokens: maxTokens,
+        system: systemParts.join("\n\n"),
+        messages: userParts.map((message) => ({
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: message.content
+        }))
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error?.message || `Anthropic request failed with ${response.status}`);
+    }
+
+    return (data.content || [])
+      .filter((item) => item.type === "text")
+      .map((item) => item.text)
+      .join("")
+      .trim();
+  }
+
+  const response = await fetch(`${cfg.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${cfg.apiKey}`
+    },
+    body: JSON.stringify({
+      model: cfg.model || "gpt-4o-mini",
+      max_tokens: maxTokens,
+      response_format: responseFormat,
+      messages
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error?.message || `${cfg.provider} request failed with ${response.status}`);
+  }
+
+  return data.choices?.[0]?.message?.content || "";
+}
+
 async function withImap(cfg, handler) {
   const imapConfig = resolveImapConfig(cfg);
   const client = new ImapFlow({
@@ -118,21 +232,29 @@ async function withImap(cfg, handler) {
   }
 }
 
-async function testOpenAIKey(apiKey) {
+async function testAIProvider({ provider, apiKey, model }) {
   if (!apiKey) {
     return { ok: false, skipped: true };
   }
 
-  const response = await fetch("https://api.openai.com/v1/models", {
-    headers: { Authorization: `Bearer ${apiKey}` }
+  const content = await callAI({
+    provider,
+    apiKey,
+    model,
+    maxTokens: 20,
+    messages: [
+      {
+        role: "system",
+        content: "Reply with the single word OK."
+      },
+      {
+        role: "user",
+        content: "Connection test."
+      }
+    ]
   });
 
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.error?.message || `OpenAI request failed with ${response.status}`);
-  }
-
-  return { ok: true };
+  return { ok: /ok/i.test(content), provider: provider || "openai" };
 }
 
 async function findTrashMailbox(client) {
@@ -215,18 +337,22 @@ app.post("/api/test-connection", async (req, res) => {
       await client.mailboxOpen(resolved.folder);
     });
 
-    let openai = { ok: false, skipped: true };
-    if (cfg.okey) {
-      openai = await testOpenAIKey(cfg.okey);
+    let ai = { ok: false, skipped: true };
+    if (cfg.aiKey || cfg.okey) {
+      ai = await testAIProvider({
+        provider: cfg.aiProvider || "openai",
+        apiKey: cfg.aiKey || cfg.okey,
+        model: cfg.aiModel || cfg.model
+      });
     }
 
     res.json({
       ok: true,
-      message: openai.ok
-        ? `IMAP connected to ${imapConfig.host}:${imapConfig.port}, and the OpenAI key is valid.`
+      message: ai.ok
+        ? `IMAP connected to ${imapConfig.host}:${imapConfig.port}, and the AI provider is reachable.`
         : `IMAP connected to ${imapConfig.host}:${imapConfig.port}.`,
       imap: { host: imapConfig.host, port: imapConfig.port, folder: imapConfig.folder },
-      openai
+      ai
     });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
@@ -292,47 +418,37 @@ app.post("/api/emails/star", async (req, res) => {
 });
 
 app.post("/api/ai/summarize", async (req, res) => {
-  const { apiKey, model, email } = req.body || {};
+  const { apiKey, model, provider, email } = req.body || {};
 
   try {
     if (!apiKey) throw new Error("Missing OpenAI API key.");
     if (!email) throw new Error("Missing email payload.");
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: model || "gpt-4o-mini",
-        max_tokens: 300,
-        messages: [
-          {
-            role: "system",
-            content: "You are an email assistant. Summarize the email in 2 to 3 sentences and give one clear action item."
-          },
-          {
-            role: "user",
-            content: `From: ${email.from} <${email.addr}>\nSubject: ${email.subj}\n\n${email.body || email.prev}`
-          }
-        ]
-      })
+    const summary = await callAI({
+      provider,
+      apiKey,
+      model,
+      maxTokens: 300,
+      messages: [
+        {
+          role: "system",
+          content: "You are an email assistant. Summarize the email in 2 to 3 sentences and give one clear action item."
+        },
+        {
+          role: "user",
+          content: `From: ${email.from} <${email.addr}>\nSubject: ${email.subj}\n\n${email.body || email.prev}`
+        }
+      ]
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error?.message || `OpenAI request failed with ${response.status}`);
-    }
-
-    res.json({ ok: true, summary: data.choices?.[0]?.message?.content || "" });
+    res.json({ ok: true, summary });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
 });
 
 app.post("/api/ai/brief", async (req, res) => {
-  const { apiKey, model, emails } = req.body || {};
+  const { apiKey, model, provider, emails } = req.body || {};
 
   try {
     if (!apiKey) throw new Error("Missing OpenAI API key.");
@@ -345,34 +461,223 @@ app.post("/api/ai/brief", async (req, res) => {
       .map((email) => `[${email.cat}][${email.star ? "starred" : "normal"}] "${email.subj}" from ${email.from}`)
       .join("\n");
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: model || "gpt-4o-mini",
-        max_tokens: 400,
-        messages: [
-          {
-            role: "system",
-            content: "You are a professional email assistant. Write a concise daily inbox brief in 3 to 4 sentences. Highlight what needs attention first and include one clear next step."
-          },
-          {
-            role: "user",
-            content: `Today's inbox snapshot:\n${snapshot}\n\nWrite the brief.`
-          }
-        ]
-      })
+    const brief = await callAI({
+      provider,
+      apiKey,
+      model,
+      maxTokens: 400,
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional email assistant. Write a concise daily inbox brief in 3 to 4 sentences. Highlight what needs attention first and include one clear next step."
+        },
+        {
+          role: "user",
+          content: `Today's inbox snapshot:\n${snapshot}\n\nWrite the brief.`
+        }
+      ]
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error?.message || `OpenAI request failed with ${response.status}`);
+    res.json({ ok: true, brief });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/ai/strategy", async (req, res) => {
+  const { apiKey, model, provider, emails, prompt } = req.body || {};
+
+  try {
+    if (!apiKey) throw new Error("Missing OpenAI API key.");
+    if (!Array.isArray(emails) || !emails.length) {
+      throw new Error("No emails available for strategy generation.");
     }
 
-    res.json({ ok: true, brief: data.choices?.[0]?.message?.content || "" });
+    const payload = emails.slice(0, 80).map((email) => ({
+      uid: email.uid,
+      from: email.from,
+      address: email.addr,
+      subject: email.subj,
+      preview: email.prev,
+      category: email.cat,
+      starred: Boolean(email.star),
+      unread: Boolean(email.unread),
+      spam: Boolean(email.spam)
+    }));
+
+    const promptLayer = String(prompt || "").trim() || "Group my inbox by urgency and theme. Keep labels practical and minimal.";
+    const content = await callAI({
+      provider,
+      apiKey,
+      model,
+      maxTokens: 1400,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are an inbox operations strategist.",
+            "Turn the user's organizing instructions into a practical inbox strategy before any email-level action is taken.",
+            "Return strict JSON with this shape:",
+            "{",
+            '  "strategy": "short paragraph",',
+            '  "processingSummary": "one sentence about what analyze will do",',
+            '  "labels": [{"name":"string","description":"string","color":"#RRGGBB"}],',
+            '  "summarySections": ["string","string"]',
+            "}",
+            "Rules:",
+            "- Create 3 to 7 labels max.",
+            "- Label names must be short, distinct, and mailbox-safe.",
+            "- Prefer practical work labels over vague emotional ones.",
+            "- summarySections should explain what the system will summarize or prioritize for the user."
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: `User organizing instructions:\n${promptLayer}\n\nEmails:\n${JSON.stringify(payload, null, 2)}`
+        }
+      ]
+    });
+
+    const parsed = JSON.parse(extractJsonBlock(content));
+    const labels = Array.isArray(parsed.labels) ? parsed.labels : [];
+
+    const safeLabels = labels
+      .map((label, index) => ({
+        name: normalizeLabelName(label.name || `Label ${index + 1}`),
+        description: String(label.description || "").trim(),
+        color: /^#[0-9a-f]{6}$/i.test(label.color || "") ? label.color : ["#4f8ef7", "#3ecf8e", "#f7c948", "#f75f5f", "#00c8dc", "#7c5cfc"][index % 6]
+      }))
+      .filter((label) => label.name);
+
+    res.json({
+      ok: true,
+      strategy: String(parsed.strategy || "").trim(),
+      processingSummary: String(parsed.processingSummary || "").trim(),
+      labels: safeLabels,
+      summarySections: Array.isArray(parsed.summarySections)
+        ? parsed.summarySections.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4)
+        : []
+    });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/ai/organize", async (req, res) => {
+  const { apiKey, model, provider, emails, prompt, strategy, labels } = req.body || {};
+
+  try {
+    if (!apiKey) throw new Error("Missing OpenAI API key.");
+    if (!Array.isArray(emails) || !emails.length) {
+      throw new Error("No emails available for organization.");
+    }
+
+    const usableLabels = Array.isArray(labels) ? labels : [];
+    if (!usableLabels.length) {
+      throw new Error("Generate a strategy first so labels exist.");
+    }
+
+    const payload = emails.slice(0, 80).map((email) => ({
+      uid: email.uid,
+      from: email.from,
+      address: email.addr,
+      subject: email.subj,
+      preview: email.prev,
+      category: email.cat,
+      starred: Boolean(email.star),
+      unread: Boolean(email.unread),
+      spam: Boolean(email.spam)
+    }));
+
+    const content = await callAI({
+      provider,
+      apiKey,
+      model,
+      maxTokens: 1800,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are an inbox operations assistant.",
+            "Use the approved strategy and labels exactly as provided.",
+            "Return strict JSON with this shape:",
+            "{",
+            '  "summary": "short paragraph",',
+            '  "assignments": [{"uid":123,"label":"string","reason":"short sentence","priority":"high|medium|low"}]',
+            "}",
+            "Rules:",
+            "- Every assignment label must match one of the approved labels.",
+            "- Assign every email to exactly one approved label.",
+            "- Reason should explain why that email belongs there.",
+            "- Priority should reflect the user's stated urgency preferences."
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: `User instructions:\n${String(prompt || "").trim()}\n\nApproved strategy:\n${String(strategy || "").trim()}\n\nApproved labels:\n${JSON.stringify(usableLabels, null, 2)}\n\nEmails:\n${JSON.stringify(payload, null, 2)}`
+        }
+      ]
+    });
+
+    const parsed = JSON.parse(extractJsonBlock(content));
+    const labelSet = new Set(usableLabels.map((label) => normalizeLabelName(label.name)));
+    const assignments = Array.isArray(parsed.assignments) ? parsed.assignments : [];
+    const safeAssignments = assignments
+      .map((assignment) => ({
+        uid: Number(assignment.uid),
+        label: normalizeLabelName(assignment.label),
+        reason: String(assignment.reason || "").trim(),
+        priority: ["high", "medium", "low"].includes(String(assignment.priority || "").toLowerCase())
+          ? String(assignment.priority).toLowerCase()
+          : "medium"
+      }))
+      .filter((assignment) => assignment.uid && labelSet.has(assignment.label));
+
+    res.json({
+      ok: true,
+      summary: String(parsed.summary || "").trim(),
+      assignments: safeAssignments
+    });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/mailboxes/create-labels", async (req, res) => {
+  const { cfg, labels } = req.body || {};
+
+  try {
+    if (!Array.isArray(labels) || !labels.length) {
+      throw new Error("No labels were provided.");
+    }
+
+    const requested = labels
+      .map((label) => normalizeLabelName(label))
+      .filter(Boolean)
+      .slice(0, 20);
+
+    if (!requested.length) {
+      throw new Error("No valid labels were provided.");
+    }
+
+    const created = await withImap(cfg, async (client) => {
+      const existing = await client.list();
+      const existingPaths = new Set(existing.map((box) => box.path));
+      const createdPaths = [];
+
+      for (const label of requested) {
+        const mailboxPath = `MailMind/${label}`;
+        if (!existingPaths.has(mailboxPath)) {
+          await client.mailboxCreate(mailboxPath);
+          existingPaths.add(mailboxPath);
+          createdPaths.push(mailboxPath);
+        }
+      }
+
+      return createdPaths;
+    });
+
+    res.json({ ok: true, created, requested });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
