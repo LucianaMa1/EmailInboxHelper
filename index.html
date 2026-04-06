@@ -845,8 +845,9 @@ function renderList() {
         <div class="erow-subj">${x(e.subj)}</div>
         <div class="erow-prev">${x((e.prev || "").substring(0, 90))}${(e.prev || "").length > 90 ? "…" : ""}</div>
         <div class="erow-tags">
-          <span class="etag etag-${cc(e.cat)}">${x(e.cat)}</span>
-          ${e.aiLabel ? `<span class="ai-badge">${x(e.aiLabel)}</span>` : ""}
+          ${e.aiLabel
+            ? `<span class="ai-badge">${x(e.aiLabel)}</span>`
+            : `<span class="etag etag-${cc(e.cat)}">${x(e.cat)}</span>`}
           ${e.aiPriority ? `<span class="priority-pill priority-${x(e.aiPriority)}">${x(e.aiPriority)}</span>` : ""}
           ${e.star ? '<span class="etag etag-star">★ starred</span>' : ""}
           ${e.spam ? '<span class="etag etag-spam">⚠ spam</span>' : ""}
@@ -882,8 +883,9 @@ function renderDetail(email) {
     <div class="d-subj">${x(email.subj)}</div>
     <div class="d-meta">
       <span>${x(email.addr || "")}</span><span>·</span><span>${x(email.date || "")}</span><span>·</span>
-      <span class="etag etag-${cc(email.cat)}" style="font-size:10px">${x(email.cat)}</span>
-      ${email.aiLabel ? `<span class="ai-badge">${x(email.aiLabel)}</span>` : ""}
+      ${email.aiLabel
+        ? `<span class="ai-badge">${x(email.aiLabel)}</span>`
+        : `<span class="etag etag-${cc(email.cat)}" style="font-size:10px">${x(email.cat)}</span>`}
       ${email.aiPriority ? `<span class="priority-pill priority-${x(email.aiPriority)}">${x(email.aiPriority)}</span>` : ""}
       ${email.star ? '<span class="etag etag-star" style="font-size:10px">★ starred</span>' : ""}
     </div>

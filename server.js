@@ -139,6 +139,26 @@ function normalizeLabelName(value = "") {
     .slice(0, 40);
 }
 
+function buildEmailContext(email = {}, mode = "strategy") {
+  const base = {
+    uid: email.uid,
+    from: email.from,
+    address: email.addr,
+    subject: email.subj,
+    preview: email.prev,
+    starred: Boolean(email.star),
+    unread: Boolean(email.unread),
+    spam: Boolean(email.spam)
+  };
+
+  const body = String(email.body || "").replace(/\s+/g, " ").trim();
+  if (body) {
+    base.bodySnippet = body.slice(0, mode === "organize" ? 2000 : 1200);
+  }
+
+  return base;
+}
+
 function resolveAIConfig({ provider, apiKey, model }) {
   const resolved = AI_PROVIDERS[provider || "openai"] || AI_PROVIDERS.openai;
   if (!apiKey) {
@@ -489,17 +509,7 @@ app.post("/api/ai/strategy", async (req, res) => {
 
   try {
     if (!apiKey) throw new Error("Missing OpenAI API key.");
-    const payload = (Array.isArray(emails) ? emails : []).slice(0, 80).map((email) => ({
-      uid: email.uid,
-      from: email.from,
-      address: email.addr,
-      subject: email.subj,
-      preview: email.prev,
-      category: email.cat,
-      starred: Boolean(email.star),
-      unread: Boolean(email.unread),
-      spam: Boolean(email.spam)
-    }));
+    const payload = (Array.isArray(emails) ? emails : []).slice(0, 80).map((email) => buildEmailContext(email, "strategy"));
 
     const promptLayer = String(prompt || "").trim() || "Group my inbox by urgency and theme. Keep labels practical and minimal.";
     const content = await callAI({
@@ -524,6 +534,8 @@ app.post("/api/ai/strategy", async (req, res) => {
             "- Create 3 to 7 labels max.",
             "- Label names must be short, distinct, and mailbox-safe.",
             "- Prefer practical work labels over vague emotional ones.",
+            "- Cold outbound sales, unsolicited pitches, link-building, agency offers, growth hacks, SEO outreach, guest post asks, and generic marketing blasts should not be placed in a real work bucket unless the user's instructions explicitly say so.",
+            "- If the inbox likely contains sales outreach, create a low-priority label such as Promotions, Sales Outreach, Noise, or Low Priority.",
             "- summarySections should explain what the system will summarize or prioritize for the user."
           ].join("\n")
         },
@@ -575,17 +587,7 @@ app.post("/api/ai/organize", async (req, res) => {
       throw new Error("Generate a strategy first so labels exist.");
     }
 
-    const payload = emails.slice(0, 80).map((email) => ({
-      uid: email.uid,
-      from: email.from,
-      address: email.addr,
-      subject: email.subj,
-      preview: email.prev,
-      category: email.cat,
-      starred: Boolean(email.star),
-      unread: Boolean(email.unread),
-      spam: Boolean(email.spam)
-    }));
+    const payload = emails.slice(0, 80).map((email) => buildEmailContext(email, "organize"));
 
     const content = await callAI({
       provider,
@@ -607,7 +609,9 @@ app.post("/api/ai/organize", async (req, res) => {
             "- Every assignment label must match one of the approved labels.",
             "- Assign every email to exactly one approved label.",
             "- Reason should explain why that email belongs there.",
-            "- Priority should reflect the user's stated urgency preferences."
+            "- Priority should reflect the user's stated urgency preferences.",
+            "- Do not anchor on legacy heuristic categories; classify from the actual sender, subject, preview, and body snippet.",
+            "- Cold sales outreach, vendor prospecting, SEO offers, backlink requests, agency pitches, and generic B2B marketing should go to a non-work / low-priority label when such a label exists."
           ].join("\n")
         },
         {
