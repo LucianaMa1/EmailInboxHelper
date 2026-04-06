@@ -238,7 +238,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
   <aside class="sidebar">
     <div class="nav-section">
       <span class="nav-label">Mailbox</span>
-      <div class="nav-item active" id="nav-inbox" onclick="goPanel('inbox',this)">
+      <div class="nav-item" id="nav-inbox" onclick="goPanel('inbox',this)">
         <span class="nav-icon">📬</span><span class="nav-name">Inbox</span>
         <span class="nav-count" id="cnt-all">0</span>
       </div>
@@ -260,7 +260,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
     </div>
     <div class="nav-divider"></div>
     <div class="nav-section">
-      <div class="nav-item" id="nav-brief" onclick="goPanel('brief',this)">
+      <div class="nav-item active" id="nav-brief" onclick="goPanel('brief',this)">
         <span class="nav-icon">📰</span><span class="nav-name">Daily Brief</span>
       </div>
       <div class="nav-item" id="nav-setup" onclick="goPanel('setup',this)">
@@ -272,7 +272,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
   <main class="main">
 
     <!-- ══ SETUP ══ -->
-    <div class="panel active" id="panel-setup">
+    <div class="panel" id="panel-setup">
       <div class="panel-header">
         <span class="panel-title">Settings</span>
       </div>
@@ -445,7 +445,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
     </div>
 
     <!-- ══ BRIEF ══ -->
-    <div class="panel" id="panel-brief">
+    <div class="panel active" id="panel-brief">
       <div class="panel-header">
         <span class="panel-title">Daily Brief</span>
         <button class="btn btn-primary btn-sm" onclick="genBrief()">✦ Generate</button>
@@ -454,7 +454,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
       <div class="brief-body" id="briefBody">
         <div class="empty-state">
           <div class="empty-icon">📰</div>
-          <p>Click "Generate" — AI will summarize<br>and prioritize your inbox for you.</p>
+          <p>Preparing your daily brief…</p>
         </div>
       </div>
     </div>
@@ -558,11 +558,13 @@ async function api(path, payload) {
   hydrateForm();
   updateCounts();
   renderCategories();
+  renderBriefHome();
 
   try {
     const response = await fetch(API_BASE + "/api/health");
     if (response.ok) {
       document.getElementById("statusLabel").textContent = "Local server ready";
+      await autoRefreshBrief();
     }
   } catch (error) {
     document.getElementById("statusLabel").textContent = "Start localhost:3030 server";
@@ -632,11 +634,85 @@ function requireAICfg() {
   return cfg;
 }
 
+function hasEmailConfig(cfg = S.cfg) {
+  return Boolean(cfg?.prov && cfg?.email && cfg?.pass && (cfg.prov !== "custom" || cfg.imapHost));
+}
+
+function hasAIConfig(cfg = S.cfg) {
+  return Boolean(cfg?.aiKey && cfg?.aiModel);
+}
+
+function renderBriefHome() {
+  const body = document.getElementById("briefBody");
+  if (!body) return;
+
+  const cfg = persistCfg();
+
+  if (!hasEmailConfig(cfg)) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📰</div>
+        <p>Configure your email to unlock your daily brief.</p>
+        <button class="btn btn-primary btn-sm" onclick="goPanel('setup',document.getElementById('nav-setup'))">Configure your email</button>
+      </div>
+    `;
+    return;
+  }
+
+  if (!hasAIConfig(cfg)) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🧠</div>
+        <p>Configure your AI API to generate Luci's daily brief.</p>
+        <button class="btn btn-primary btn-sm" onclick="goPanel('setup',document.getElementById('nav-setup'))">Configure your AI API</button>
+      </div>
+    `;
+    return;
+  }
+
+  if (!S.connected || !S.emails.length) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">↻</div>
+        <p>Connect and sync your inbox to refresh today's brief.</p>
+        <button class="btn btn-primary btn-sm" onclick="saveConn({ navigate: 'brief', autoBrief: true })">Refresh Daily Brief</button>
+      </div>
+    `;
+    return;
+  }
+
+  body.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">⏳</div>
+      <p>Refreshing your daily brief…</p>
+    </div>
+  `;
+}
+
+async function autoRefreshBrief() {
+  const cfg = persistCfg();
+  if (!hasEmailConfig(cfg) || !hasAIConfig(cfg)) {
+    renderBriefHome();
+    return;
+  }
+
+  try {
+    await saveConn({ silent: true, navigate: "brief", autoBrief: true });
+  } catch {}
+}
+
 function goPanel(name, el) {
   document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
   document.getElementById("panel-" + name).classList.add("active");
   document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
   if (el) el.classList.add("active");
+  if (name === "brief") {
+    if (S.connected && hasAIConfig(persistCfg()) && S.emails.length) {
+      genBrief();
+    } else {
+      renderBriefHome();
+    }
+  }
   if (name !== "inbox") {
     S.filter = null;
     document.getElementById("inboxTitle").textContent = "Inbox";
@@ -730,10 +806,13 @@ async function testConn() {
   }
 }
 
-async function saveConn() {
+async function saveConn(options = {}) {
+  const { silent = false, navigate = "brief", autoBrief = false } = options;
   document.getElementById("btnSave").disabled = true;
   progress(30);
-  toast("🔗", "Connecting to your mailbox…");
+  if (!silent) {
+    toast("🔗", "Connecting to your mailbox…");
+  }
 
   try {
     const cfg = requireCfg();
@@ -750,11 +829,27 @@ async function saveConn() {
     renderList();
     renderDetail(null);
     progress(100);
-    goPanel("inbox", document.getElementById("nav-inbox"));
-    toast("✓", `Connected. Loaded ${S.emails.length} emails.`);
+    if (navigate === "brief") {
+      goPanel("brief", document.getElementById("nav-brief"));
+    } else if (navigate === "setup") {
+      goPanel("setup", document.getElementById("nav-setup"));
+    } else {
+      goPanel("inbox", document.getElementById("nav-inbox"));
+    }
+    if (autoBrief && hasAIConfig(cfg)) {
+      await genBrief({ silent });
+    }
+    if (!silent) {
+      toast("✓", `Connected. Loaded ${S.emails.length} emails.`);
+    }
   } catch (error) {
     progress(100);
-    toast("✗", error.message);
+    if (!silent) {
+      toast("✗", error.message);
+    } else {
+      renderBriefHome();
+    }
+    throw error;
   } finally {
     document.getElementById("btnSave").disabled = false;
   }
@@ -1106,8 +1201,18 @@ function doSearch(q) {
   renderList();
 }
 
-async function genBrief() {
-  if (!S.connected) return toast("⚠", "Connect your mailbox first");
+async function genBrief(options = {}) {
+  const { silent = false } = options;
+  if (!S.connected) {
+    renderBriefHome();
+    if (!silent) toast("⚠", "Connect your mailbox first");
+    return;
+  }
+  if (!hasAIConfig(persistCfg())) {
+    renderBriefHome();
+    if (!silent) toast("⚠", "Configure your AI API first");
+    return;
+  }
   const body = document.getElementById("briefBody");
   body.innerHTML = `<div class="empty-state"><div class="empty-icon">⏳</div><p>Generating your daily brief…</p></div>`;
   progress(40);
@@ -1186,7 +1291,9 @@ async function genBrief() {
       </div>
     </div>
   `;
-  toast("📰", "Brief generated");
+  if (!silent) {
+    toast("📰", "Brief generated");
+  }
 }
 
 function catColor(c) {
