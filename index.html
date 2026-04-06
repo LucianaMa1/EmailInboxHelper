@@ -275,7 +275,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
     <div class="panel active" id="panel-setup">
       <div class="panel-header">
         <span class="panel-title">Settings</span>
-        <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Save &amp; Connect</button>
       </div>
       <div class="setup-body">
         <div class="setup-inner">
@@ -334,6 +333,9 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                 <br><br>
                 If you see "connection failed", it usually means this page was opened directly from Finder or the local server is not running on <strong>http://localhost:3030</strong>.
               </div>
+              <div class="step-actions">
+                <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Connect &amp; Sync Inbox</button>
+              </div>
             </div>
           </div>
 
@@ -362,7 +364,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                 <p class="hint" id="aiHint">Used for summaries, strategy generation, and inbox analysis. Stored locally only in this browser.</p>
               </div>
               <div class="step-actions">
-                <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Connection</button>
+                <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Email + AI</button>
               </div>
               <div class="test-result" id="testResult"></div>
             </div>
@@ -1249,13 +1251,17 @@ function renderCategories() {
   const title = document.getElementById("categoryLabel");
   if (!root || !title) return;
 
-  const derivedLabels = S.aiLabels.length
-    ? S.aiLabels
-    : Array.from(new Set(S.emails.map((email) => email.aiLabel).filter(Boolean))).map((name, index) => ({
-        name,
-        description: "AI-generated category",
-        color: ["#4f8ef7", "#3ecf8e", "#f7c948", "#f75f5f", "#00c8dc", "#7c5cfc"][index % 6]
-      }));
+  const assignedLabelNames = Array.from(new Set(S.emails.map((email) => email.aiLabel).filter(Boolean)));
+  const derivedLabels = assignedLabelNames.length
+    ? (S.aiLabels.length
+        ? S.aiLabels.filter((label) => assignedLabelNames.includes(label.name))
+        : assignedLabelNames.map((name, index) => ({
+            name,
+            description: "AI-generated category",
+            color: ["#4f8ef7", "#3ecf8e", "#f7c948", "#f75f5f", "#00c8dc", "#7c5cfc"][index % 6]
+          })))
+    : [];
+  const plannedLabelCount = S.aiLabels.length;
 
   if (derivedLabels.length) {
     title.textContent = "AI Categories";
@@ -1272,6 +1278,12 @@ function renderCategories() {
         </div>
       `;
     }).join("");
+    return;
+  }
+
+  if (plannedLabelCount) {
+    title.textContent = "Planned Categories";
+    root.innerHTML = `<div class="label-desc">Strategy generated. Run Start Analyze to assign emails into these categories.</div>`;
     return;
   }
 
