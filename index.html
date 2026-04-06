@@ -738,11 +738,6 @@ async function saveConn() {
     const data = await api("/api/emails/sync", cfg);
     S.connected = true;
     S.emails = data.emails || [];
-    S.aiLabels = [];
-    S.aiSummary = "";
-    S.aiStrategy = "";
-    S.aiProcessingSummary = "";
-    S.aiSummarySections = [];
     S.openId = null;
     S.sel.clear();
     document.getElementById("statusDot").classList.add("on");
@@ -771,12 +766,22 @@ async function syncEmails() {
     const cfg = requireCfg();
     const currentOpenId = S.openId;
     const data = await api("/api/emails/sync", cfg);
-    S.emails = data.emails || [];
-    S.aiLabels = [];
-    S.aiSummary = "";
-    S.aiStrategy = "";
-    S.aiProcessingSummary = "";
-    S.aiSummarySections = [];
+    const previousAssignments = new Map(
+      S.emails.map((email) => [
+        email.uid,
+        {
+          cat: email.cat,
+          legacyCat: email.legacyCat,
+          aiLabel: email.aiLabel,
+          aiReason: email.aiReason,
+          aiPriority: email.aiPriority
+        }
+      ])
+    );
+    S.emails = (data.emails || []).map((email) => {
+      const previous = previousAssignments.get(email.uid);
+      return previous ? { ...email, ...previous } : email;
+    });
     S.view = [];
     if (!S.emails.some((email) => email.id === currentOpenId)) {
       S.openId = null;
@@ -802,8 +807,8 @@ function getFilteredEmails() {
     if (S.filter === "starred") emails = emails.filter((e) => e.star);
     else if (S.filter === "unread") emails = emails.filter((e) => e.unread);
     else if (S.filter === "Spam") emails = emails.filter((e) => e.spam);
-    else if (String(S.filter).startsWith("label:")) emails = emails.filter((e) => e.aiLabel === String(S.filter).slice(6));
-    else if (S.aiLabels.length) emails = emails.filter((e) => e.aiLabel === S.filter);
+    else if (String(S.filter).startsWith("label:")) emails = emails.filter((e) => (e.aiLabel || e.cat) === String(S.filter).slice(6));
+    else if (S.aiLabels.length) emails = emails.filter((e) => (e.aiLabel || e.cat) === S.filter);
     else emails = emails.filter((e) => e.cat === S.filter);
   }
 
@@ -1244,10 +1249,18 @@ function renderCategories() {
   const title = document.getElementById("categoryLabel");
   if (!root || !title) return;
 
-  if (S.aiLabels.length) {
+  const derivedLabels = S.aiLabels.length
+    ? S.aiLabels
+    : Array.from(new Set(S.emails.map((email) => email.aiLabel).filter(Boolean))).map((name, index) => ({
+        name,
+        description: "AI-generated category",
+        color: ["#4f8ef7", "#3ecf8e", "#f7c948", "#f75f5f", "#00c8dc", "#7c5cfc"][index % 6]
+      }));
+
+  if (derivedLabels.length) {
     title.textContent = "AI Categories";
-    root.innerHTML = S.aiLabels.map((label) => {
-      const count = S.emails.filter((email) => email.aiLabel === label.name).length;
+    root.innerHTML = derivedLabels.map((label) => {
+      const count = S.emails.filter((email) => (email.aiLabel || email.cat) === label.name).length;
       return `
         <div class="label-item" onclick="goPanel('inbox',document.getElementById('nav-inbox'));setFilter('label:${jsq(label.name)}')">
           <span class="label-swatch" style="background:${x(label.color || "#4f8ef7")}"></span>
