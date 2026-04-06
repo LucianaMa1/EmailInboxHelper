@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MailMind</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #111118;
+  --surface2: #1a1a24;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8e8f0;
+  --muted: #6b6b80;
+  --accent: #4f8ef7;
+  --green: #3ecf8e;
+  --red: #f75f5f;
+  --yellow: #f7c948;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+
+body { font-family: var(--sans); background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+.topbar { display:flex; align-items:center; padding:0 20px; height:52px; border-bottom:1px solid var(--border); gap:16px; flex-shrink:0; background:var(--surface); }
+.logo { font-family:var(--mono); font-size:15px; font-weight:600; letter-spacing:-0.5px; }
+.logo-dot { color:var(--accent); }
+.topbar-sep { flex:1; }
+.status-pill { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; color:var(--muted); padding:4px 10px; border:1px solid var(--border); border-radius:20px; }
+.status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); }
+.status-dot.on { background:var(--green); box-shadow:0 0 6px var(--green); }
+
+.layout { display:flex; flex:1; overflow:hidden; }
+
+.sidebar { width:220px; flex-shrink:0; border-right:1px solid var(--border); display:flex; flex-direction:column; background:var(--surface); overflow-y:auto; }
+.nav-section { padding:16px 12px 8px; }
+.nav-label { font-family:var(--mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); padding:0 8px; margin-bottom:6px; display:block; }
+.nav-item { display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:6px; cursor:pointer; font-size:13px; color:var(--muted); transition:all .15s; border:1px solid transparent; margin-bottom:2px; }
+.nav-item:hover { color:var(--text); background:var(--surface2); }
+.nav-item.active { color:var(--text); background:var(--surface2); border-color:var(--border); }
+.nav-icon { width:16px; text-align:center; font-size:13px; }
+.nav-name { flex:1; }
+.nav-count { font-family:var(--mono); font-size:10px; color:var(--muted); background:rgba(255,255,255,0.05); padding:1px 5px; border-radius:3px; }
+.cat-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.nav-divider { height:1px; background:var(--border); margin:8px 12px; }
+
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.panel { display:none; flex:1; overflow:hidden; flex-direction:column; }
+.panel.active { display:flex; }
+
+.panel-header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.panel-title { font-size:14px; font-weight:600; flex:1; }
+
+.btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:6px; border:1px solid var(--border2); background:var(--surface2); font-family:var(--sans); font-size:12px; font-weight:500; cursor:pointer; color:var(--text); transition:all .15s; }
+.btn:hover { background:rgba(255,255,255,0.08); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+.btn-primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn-primary:hover { background:#6a9ef9; }
+.btn-danger { background:transparent; border-color:rgba(247,95,95,.4); color:var(--red); }
+.btn-danger:hover { background:rgba(247,95,95,.1); }
+.btn-sm { padding:5px 10px; font-size:11px; }
+
+/* SETUP */
+.setup-body { flex:1; overflow-y:auto; padding:32px; display:flex; justify-content:center; }
+.setup-inner { width:100%; max-width:560px; }
+.setup-title { font-size:22px; font-weight:600; margin-bottom:6px; }
+.setup-sub { font-size:13px; color:var(--muted); margin-bottom:28px; line-height:1.6; }
+
+.step-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:16px; overflow:hidden; }
+.step-head { padding:14px 18px; border-bottom:1px solid var(--border); font-size:13px; font-weight:600; display:flex; align-items:center; gap:10px; background:var(--surface2); }
+.step-num { width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--mono); }
+.step-body { padding:18px; }
+
+.provider-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:4px; }
+.provider-tile { padding:12px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); cursor:pointer; text-align:center; transition:all .15s; font-size:12px; color:var(--muted); }
+.provider-tile:hover { border-color:var(--border2); color:var(--text); }
+.provider-tile.sel { border-color:var(--accent); background:rgba(79,142,247,.08); color:var(--accent); }
+.provider-tile .picon { font-size:20px; display:block; margin-bottom:4px; }
+
+.fgroup { margin-bottom:14px; }
+.fgroup:last-child { margin-bottom:0; }
+.fgroup label { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.fgroup input, .fgroup select { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:6px; font-family:var(--mono); font-size:12px; background:var(--bg); color:var(--text); outline:none; transition:border-color .15s; }
+.fgroup input:focus, .fgroup select:focus { border-color:var(--accent); }
+.fgroup select option { background:var(--surface); }
+.frow { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.hint { font-size:11px; color:var(--muted); margin-top:5px; line-height:1.5; font-family:var(--mono); }
+.hint a { color:var(--accent); text-decoration:none; }
+.hint a:hover { text-decoration:underline; }
+
+.info-box { background:rgba(79,142,247,.08); border:1px solid rgba(79,142,247,.2); border-radius:6px; padding:10px 14px; font-size:12px; color:#a0bef8; line-height:1.7; margin-top:12px; display:none; }
+.warn-box { background:rgba(247,201,72,.08); border:1px solid rgba(247,201,72,.2); border-radius:6px; padding:10px 14px; font-size:12px; color:#f7d97c; line-height:1.6; margin-top:12px; }
+.test-result { margin-top:12px; padding:10px 14px; border-radius:6px; font-size:12px; font-family:var(--mono); display:none; line-height:1.6; }
+.test-ok  { background:rgba(62,207,142,.1); border:1px solid rgba(62,207,142,.25); color:var(--green); }
+.test-err { background:rgba(247,95,95,.1);  border:1px solid rgba(247,95,95,.25);  color:var(--red); }
+
+/* INBOX */
+.inbox-body { flex:1; display:flex; overflow:hidden; }
+.list-pane { width:380px; flex-shrink:0; border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.list-toolbar { padding:10px 14px; border-bottom:1px solid var(--border); display:flex; gap:8px; align-items:center; flex-shrink:0; }
+.search-box { flex:1; padding:7px 12px; border:1px solid var(--border); border-radius:6px; background:var(--bg); font-family:var(--mono); font-size:11px; color:var(--text); outline:none; }
+.search-box:focus { border-color:var(--accent); }
+.search-box::placeholder { color:var(--muted); }
+.email-list { flex:1; overflow-y:auto; }
+
+.erow { display:flex; gap:10px; padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
+.erow:hover { background:var(--surface2); }
+.erow.cur { background:rgba(79,142,247,.06); border-left:2px solid var(--accent); }
+.erow.unread .erow-subj { font-weight:600; color:var(--text); }
+.erow.spam-flag { border-left:2px solid var(--red); }
+
+.erow-chk { width:14px; height:14px; border:1px solid var(--border2); border-radius:3px; flex-shrink:0; margin-top:3px; appearance:none; background:transparent; cursor:pointer; }
+.erow-chk:checked { background:var(--accent); border-color:var(--accent); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5l2.5 2.5 4.5-4.5' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-size:9px; background-repeat:no-repeat; background-position:center; }
+
+.erow-av { width:32px; height:32px; border-radius:50%; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; flex-shrink:0; border:1px solid var(--border); font-family:var(--mono); }
+.erow-body { flex:1; min-width:0; }
+.erow-meta { display:flex; align-items:center; margin-bottom:2px; }
+.erow-from { font-size:12px; font-weight:500; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.erow-date { font-family:var(--mono); font-size:10px; color:var(--muted); flex-shrink:0; }
+.erow-subj { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:3px; }
+.erow-prev { font-size:11px; color:var(--muted); opacity:.7; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.erow-tags { display:flex; gap:4px; margin-top:5px; flex-wrap:wrap; }
+.etag { font-family:var(--mono); font-size:9px; padding:1px 5px; border-radius:3px; }
+.etag-work     { background:rgba(62,207,142,.12);  color:#3ecf8e; }
+.etag-finance  { background:rgba(247,201,72,.12);  color:#f7c948; }
+.etag-social   { background:rgba(79,142,247,.12);  color:#4f8ef7; }
+.etag-promo    { background:rgba(124,92,252,.12);  color:#7c5cfc; }
+.etag-travel   { background:rgba(0,200,220,.12);   color:#00c8dc; }
+.etag-spam     { background:rgba(247,95,95,.12);   color:#f75f5f; }
+.etag-star     { background:rgba(247,201,72,.12);  color:#f7c948; }
+
+.detail-pane { flex:1; overflow-y:auto; padding:24px 28px; }
+.detail-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--muted); gap:10px; }
+.detail-empty .big { font-size:48px; opacity:.3; }
+.d-from { font-size:18px; font-weight:600; margin-bottom:4px; }
+.d-subj { font-size:14px; color:var(--muted); margin-bottom:16px; }
+.d-meta { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:11px; color:var(--muted); }
+.d-body { font-size:13px; line-height:1.8; color:rgba(232,232,240,.85); white-space:pre-wrap; margin-bottom:24px; }
+.d-ai { background:rgba(79,142,247,.06); border:1px solid rgba(79,142,247,.15); border-radius:8px; padding:14px 18px; }
+.d-ai-lbl { font-family:var(--mono); font-size:10px; color:var(--accent); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+.d-ai-lbl::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; }
+.d-ai-txt { font-size:12px; line-height:1.7; color:#a0bef8; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* BRIEF */
+.brief-body { flex:1; overflow-y:auto; padding:28px 32px; }
+.brief-top { display:flex; align-items:baseline; gap:14px; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+.brief-h { font-size:24px; font-weight:600; font-family:var(--mono); }
+.brief-date { font-family:var(--mono); font-size:11px; color:var(--muted); }
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+.stat-box { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; }
+.stat-n { font-family:var(--mono); font-size:30px; font-weight:600; line-height:1; margin-bottom:4px; }
+.stat-l { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+.ai-brief { background:var(--surface); border:1px solid rgba(79,142,247,.2); border-radius:10px; padding:18px 22px; margin-bottom:22px; }
+.ai-brief-lbl { font-family:var(--mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--accent); margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+.ai-brief-lbl::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; }
+.ai-brief-txt { font-size:13px; line-height:1.75; color:rgba(232,232,240,.85); }
+.brief-cols { display:grid; grid-template-columns:3fr 2fr; gap:16px; }
+.bcard { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:16px; }
+.bcard-h { padding:12px 16px; border-bottom:1px solid var(--border); font-size:12px; font-weight:600; background:var(--surface2); }
+.bcard-b { padding:0; }
+.brow { padding:12px 16px; border-bottom:1px solid var(--border); font-size:12px; }
+.brow:last-child { border-bottom:none; }
+.brow-from { font-family:var(--mono); font-size:10px; color:var(--muted); margin-bottom:2px; }
+.brow-subj { margin-bottom:3px; font-weight:500; }
+.brow-sum { font-size:11px; color:var(--muted); line-height:1.5; }
+.crow { display:flex; align-items:center; gap:8px; padding:10px 16px; border-bottom:1px solid var(--border); font-size:12px; }
+.crow:last-child { border-bottom:none; }
+.crow-n { font-family:var(--mono); font-size:11px; color:var(--muted); margin-left:auto; }
+
+.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:var(--muted); text-align:center; gap:10px; }
+.empty-icon { font-size:40px; opacity:.35; }
+.empty-state p { font-size:13px; line-height:1.6; }
+
+.ai-banner { background:rgba(79,142,247,.07); border:1px solid rgba(79,142,247,.18); border-radius:8px; padding:12px 16px; margin:10px 14px; font-size:12px; line-height:1.7; color:#a0bef8; }
+.ai-banner-lbl { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
+
+.toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:11px 16px; border-radius:8px; font-size:12px; z-index:999; transform:translateY(60px); opacity:0; transition:all .25s ease; display:flex; align-items:center; gap:8px; max-width:320px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
+.toast.show { transform:none; opacity:1; }
+
+.pbar { height:2px; background:var(--accent); width:0; position:fixed; top:0; left:0; z-index:1000; transition:width .3s; box-shadow:0 0 8px var(--accent); }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:500; display:none; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--surface); border:1px solid var(--border2); border-radius:12px; padding:28px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+.modal h3 { font-size:16px; margin-bottom:8px; }
+.modal p { font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:20px; }
+.modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<div class="pbar" id="pbar"></div>
+
+<div class="topbar">
+  <div class="logo">✦ Mail<span class="logo-dot">Mind</span></div>
+  <div class="topbar-sep"></div>
+  <div class="status-pill">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusLabel">Not connected</span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="nav-section">
+      <span class="nav-label">Mailbox</span>
+      <div class="nav-item active" id="nav-inbox" onclick="goPanel('inbox',this)">
+        <span class="nav-icon">📬</span><span class="nav-name">Inbox</span>
+        <span class="nav-count" id="cnt-all">0</span>
+      </div>
+      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('starred')">
+        <span class="nav-icon">⭐</span><span class="nav-name">Starred</span>
+        <span class="nav-count" id="cnt-star">0</span>
+      </div>
+      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('unread')">
+        <span class="nav-icon">●</span><span class="nav-name">Unread</span>
+        <span class="nav-count" id="cnt-unread">0</span>
+      </div>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-section">
+      <span class="nav-label">Categories</span>
+      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Work')">
+        <span class="cat-dot" style="background:#3ecf8e"></span><span class="nav-name">Work</span><span class="nav-count" id="cnt-work">0</span>
+      </div>
+      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Finance')">
+        <span class="cat-dot" style="background:#f7c948"></span><span class="nav-name">Finance</span><span class="nav-count" id="cnt-fin">0</span>
+      </div>
+      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Social')">
+        <span class="cat-dot" style="background:#4f8ef7"></span><span class="nav-name">Social</span><span class="nav-count" id="cnt-soc">0</span>
+      </div>
+      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Newsletters')">
+        <span class="cat-dot" style="background:#7c5cfc"></span><span class="nav-name">Newsletters</span><span class="nav-count" id="cnt-news">0</span>
+      </div>
+      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Travel')">
+        <span class="cat-dot" style="background:#00c8dc"></span><span class="nav-name">Travel</span><span class="nav-count" id="cnt-trav">0</span>
+      </div>
+      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('Spam')">
+        <span class="cat-dot" style="background:#f75f5f"></span><span class="nav-name">Spam</span><span class="nav-count" id="cnt-spam">0</span>
+      </div>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-section">
+      <div class="nav-item" id="nav-brief" onclick="goPanel('brief',this)">
+        <span class="nav-icon">📰</span><span class="nav-name">Daily Brief</span>
+      </div>
+      <div class="nav-item" id="nav-setup" onclick="goPanel('setup',this)">
+        <span class="nav-icon">⚙️</span><span class="nav-name">Settings</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ══ SETUP ══ -->
+    <div class="panel active" id="panel-setup">
+      <div class="panel-header">
+        <span class="panel-title">Settings</span>
+        <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Connection</button>
+        <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Save &amp; Connect</button>
+      </div>
+      <div class="setup-body">
+        <div class="setup-inner">
+          <h1 class="setup-title">Connect your mailbox</h1>
+          <p class="setup-sub">Credentials are stored in your browser and sent only to the local server on your machine, your email provider, and OpenAI when you explicitly use AI features.</p>
+
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">1</span> Choose email provider</div>
+            <div class="step-body">
+              <div class="provider-grid">
+                <div class="provider-tile" onclick="pickProv('gmail',this)"><span class="picon">📧</span>Gmail</div>
+                <div class="provider-tile" onclick="pickProv('outlook',this)"><span class="picon">💼</span>Outlook</div>
+                <div class="provider-tile" onclick="pickProv('qq',this)"><span class="picon">🐧</span>QQ Mail</div>
+                <div class="provider-tile" onclick="pickProv('163',this)"><span class="picon">☁️</span>163 Mail</div>
+                <div class="provider-tile" onclick="pickProv('yahoo',this)"><span class="picon">📮</span>Yahoo</div>
+                <div class="provider-tile" onclick="pickProv('custom',this)"><span class="picon">🔧</span>Custom</div>
+              </div>
+              <div id="customFields" style="display:none;margin-top:12px">
+                <div class="frow">
+                  <div class="fgroup"><label>IMAP Host</label><input type="text" id="imapHost" placeholder="imap.example.com"></div>
+                  <div class="fgroup"><label>IMAP Port</label><input type="number" id="imapPort" value="993"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">2</span> Account credentials</div>
+            <div class="step-body">
+              <div class="fgroup">
+                <label>Email address</label>
+                <input type="email" id="emailAddr" placeholder="you@gmail.com">
+              </div>
+              <div class="fgroup">
+                <label>App password <span style="color:var(--accent);font-size:9px;text-transform:none;letter-spacing:0">(not your login password)</span></label>
+                <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
+              </div>
+              <div class="info-box" id="provHint"></div>
+              <div class="test-result" id="testResult"></div>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">3</span> OpenAI API Key</div>
+            <div class="step-body">
+              <div class="fgroup">
+                <label>API Key</label>
+                <input type="password" id="openaiKey" placeholder="sk-...">
+                <p class="hint">Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a> — used for AI classification &amp; summaries, stored locally only.</p>
+              </div>
+              <div class="fgroup">
+                <label>Model</label>
+                <select id="aiModel">
+                  <option value="gpt-4o">gpt-4o (recommended)</option>
+                  <option value="gpt-4o-mini">gpt-4o-mini (faster / cheaper)</option>
+                  <option value="gpt-4-turbo">gpt-4-turbo</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">4</span> Fetch settings</div>
+            <div class="step-body">
+              <div class="frow">
+                <div class="fgroup">
+                  <label>Emails to fetch</label>
+                  <select id="fetchCount">
+                    <option value="20">20 emails</option>
+                    <option value="50" selected>50 emails</option>
+                    <option value="100">100 emails</option>
+                    <option value="200">200 emails</option>
+                  </select>
+                </div>
+                <div class="fgroup">
+                  <label>Folder</label>
+                  <select id="mailFolder">
+                    <option value="INBOX">INBOX</option>
+                    <option value="[Gmail]/All Mail">[Gmail] All Mail</option>
+                  </select>
+                </div>
+              </div>
+              <div class="warn-box">
+                ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call OpenAI through localhost.
+                <br><br>
+                If you see "connection failed", it usually means this page was opened directly from Finder or the local server is not running on <strong>http://localhost:3030</strong>.
+              </div>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-head" style="cursor:pointer" onclick="toggleReadme()">
+              <span class="step-num" style="background:var(--muted)">📖</span>
+              Real IMAP — local proxy setup
+              <span style="margin-left:auto;font-size:11px;color:var(--muted)" id="readmeToggle">▼ show</span>
+            </div>
+            <div class="step-body" id="readmeBody" style="display:none">
+              <div class="hint" style="font-size:12px;line-height:1.9">
+                Start the local server from this repo:<br><br>
+                <code style="background:var(--bg);padding:8px 12px;border-radius:5px;display:block;margin:8px 0;color:var(--green)">npm install</code>
+                <code style="background:var(--bg);padding:8px 12px;border-radius:5px;display:block;margin:8px 0;color:var(--accent)">npm start</code>
+                Then open <strong>http://localhost:3030/</strong><br><br>
+                The local server exposes IMAP + OpenAI endpoints on the same origin, so this page can work with real mail safely from your machine.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ INBOX ══ -->
+    <div class="panel" id="panel-inbox">
+      <div class="panel-header">
+        <span class="panel-title" id="inboxTitle">Inbox</span>
+        <button class="btn btn-sm" onclick="syncEmails()">↻ Sync</button>
+        <button class="btn btn-primary btn-sm" onclick="runAI()">✦ AI Analyze</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSel()">🗑 Delete selected</button>
+      </div>
+      <div class="inbox-body">
+        <div class="list-pane">
+          <div class="list-toolbar">
+            <input class="search-box" type="text" placeholder="Search…" oninput="doSearch(this.value)">
+            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap">
+              <input type="checkbox" id="cbAll" style="accent-color:var(--accent)" onchange="selAll(this)"> All
+            </label>
+          </div>
+          <div class="email-list" id="emailList">
+            <div class="empty-state">
+              <div class="empty-icon">📭</div>
+              <p>Go to Settings to set up your mailbox,<br>then click Sync.</p>
+            </div>
+          </div>
+        </div>
+        <div class="detail-pane" id="detailPane">
+          <div class="detail-empty"><div class="big">✉️</div><p>Select an email to read it</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ BRIEF ══ -->
+    <div class="panel" id="panel-brief">
+      <div class="panel-header">
+        <span class="panel-title">Daily Brief</span>
+        <button class="btn btn-primary btn-sm" onclick="genBrief()">✦ Generate</button>
+        <button class="btn btn-sm" onclick="exportBrief()">↑ Export</button>
+      </div>
+      <div class="brief-body" id="briefBody">
+        <div class="empty-state">
+          <div class="empty-icon">📰</div>
+          <p>Click "Generate" — AI will summarize<br>and prioritize your inbox for you.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Delete modal -->
+<div class="modal-overlay" id="delModal">
+  <div class="modal">
+    <h3>Delete emails</h3>
+    <p id="delTxt">This will move selected emails to Trash.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDel()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastIcon"></span><span id="toastText"></span></div>
+
+<script>
+const API_BASE = location.protocol === "file:" ? "http://localhost:3030" : "";
+
+const S = {
+  connected: false,
+  emails: [],
+  view: [],
+  sel: new Set(),
+  filter: null,
+  openId: null,
+  cfg: {},
+  search: ""
+};
+
+async function api(path, payload) {
+  let response;
+  try {
+    response = await fetch(API_BASE + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {})
+    });
+  } catch (error) {
+    throw new Error("Cannot reach the local MailMind server. Start `npm start`, then open http://localhost:3030/");
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Request failed with ${response.status}`);
+  }
+  return data;
+}
+
+(async function init() {
+  try {
+    S.cfg = JSON.parse(localStorage.getItem("mm_cfg") || "{}");
+  } catch (error) {
+    S.cfg = {};
+  }
+
+  hydrateForm();
+  updateCounts();
+
+  try {
+    const response = await fetch(API_BASE + "/api/health");
+    if (response.ok) {
+      document.getElementById("statusLabel").textContent = "Local server ready";
+    }
+  } catch (error) {
+    document.getElementById("statusLabel").textContent = "Start localhost:3030 server";
+  }
+})();
+
+function hydrateForm() {
+  document.getElementById("emailAddr").value = S.cfg.email || "";
+  document.getElementById("emailPass").value = S.cfg.pass || "";
+  document.getElementById("openaiKey").value = S.cfg.okey || "";
+  if (S.cfg.model) document.getElementById("aiModel").value = S.cfg.model;
+  if (S.cfg.count) document.getElementById("fetchCount").value = S.cfg.count;
+  if (S.cfg.folder) document.getElementById("mailFolder").value = S.cfg.folder;
+  if (S.cfg.imapHost) document.getElementById("imapHost").value = S.cfg.imapHost;
+  if (S.cfg.imapPort) document.getElementById("imapPort").value = S.cfg.imapPort;
+
+  if (S.cfg.prov) {
+    document.querySelectorAll(".provider-tile").forEach((tile) => {
+      if (tile.getAttribute("onclick").includes(`'${S.cfg.prov}'`)) {
+        tile.classList.add("sel");
+      }
+    });
+    document.getElementById("customFields").style.display = S.cfg.prov === "custom" ? "block" : "none";
+    updateHint(S.cfg.prov);
+  }
+}
+
+function readCfgFromForm() {
+  return {
+    ...S.cfg,
+    prov: S.cfg.prov,
+    email: document.getElementById("emailAddr").value.trim(),
+    pass: document.getElementById("emailPass").value.trim(),
+    okey: document.getElementById("openaiKey").value.trim(),
+    model: document.getElementById("aiModel").value,
+    count: document.getElementById("fetchCount").value,
+    folder: document.getElementById("mailFolder").value,
+    imapHost: document.getElementById("imapHost").value.trim(),
+    imapPort: document.getElementById("imapPort").value.trim()
+  };
+}
+
+function persistCfg() {
+  S.cfg = readCfgFromForm();
+  localStorage.setItem("mm_cfg", JSON.stringify(S.cfg));
+  return S.cfg;
+}
+
+function requireCfg() {
+  const cfg = persistCfg();
+  if (!cfg.prov) throw new Error("Please select an email provider.");
+  if (!cfg.email) throw new Error("Please enter your email address.");
+  if (!cfg.pass) throw new Error("Please enter your app password.");
+  if (cfg.prov === "custom" && !cfg.imapHost) throw new Error("Please enter the custom IMAP host.");
+  return cfg;
+}
+
+function goPanel(name, el) {
+  document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+  document.getElementById("panel-" + name).classList.add("active");
+  document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
+  if (el) el.classList.add("active");
+  if (name !== "inbox") {
+    S.filter = null;
+    document.getElementById("inboxTitle").textContent = "Inbox";
+  }
+}
+
+function setFilter(f) {
+  S.filter = f;
+  S.openId = null;
+  renderDetail(null);
+  const m = { starred: "Starred", unread: "Unread", Work: "Work", Finance: "Finance", Social: "Social", Newsletters: "Newsletters", Travel: "Travel", Spam: "Spam" };
+  document.getElementById("inboxTitle").textContent = m[f] || f;
+  renderList();
+}
+
+function pickProv(key, el) {
+  document.querySelectorAll(".provider-tile").forEach((t) => t.classList.remove("sel"));
+  el.classList.add("sel");
+  S.cfg.prov = key;
+  document.getElementById("customFields").style.display = key === "custom" ? "block" : "none";
+  updateHint(key);
+}
+
+function updateHint(key) {
+  const el = document.getElementById("provHint");
+  const h = {
+    gmail: `<strong>Gmail App Password:</strong><br>
+      1. Enable 2-Step Verification at <a href="https://myaccount.google.com/security" target="_blank">myaccount.google.com/security</a><br>
+      2. Go to <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a><br>
+      3. Create an app password for MailMind<br>
+      4. Paste the 16-character app password above`,
+    outlook: `<strong>Outlook / Hotmail:</strong> Usually use your Microsoft password. If 2FA is enabled, create an app password in your Microsoft security settings.`,
+    qq: `<strong>QQ Mail:</strong> Enable IMAP in settings and use the generated authorization code here.`,
+    "163": `<strong>163 Mail:</strong> Enable IMAP and use the authorization code instead of the normal password.`,
+    yahoo: `<strong>Yahoo Mail:</strong> Generate an app password in Yahoo account security and paste it here.`,
+    custom: `Enter your IMAP server hostname and port above.`
+  };
+  if (h[key]) {
+    el.innerHTML = h[key];
+    el.style.display = "block";
+  } else {
+    el.style.display = "none";
+  }
+}
+
+function toggleReadme() {
+  const b = document.getElementById("readmeBody");
+  const t = document.getElementById("readmeToggle");
+  const open = b.style.display === "none";
+  b.style.display = open ? "block" : "none";
+  t.textContent = open ? "▲ hide" : "▼ show";
+}
+
+async function testConn() {
+  const res = document.getElementById("testResult");
+  res.textContent = "⏳  Testing IMAP and local server…";
+  res.className = "test-result";
+  res.style.display = "block";
+  document.getElementById("btnTest").disabled = true;
+
+  try {
+    const cfg = requireCfg();
+    const data = await api("/api/test-connection", cfg);
+    res.textContent = "✓  " + data.message;
+    res.className = "test-result test-ok";
+  } catch (error) {
+    res.textContent = "✗  " + error.message;
+    res.className = "test-result test-err";
+  } finally {
+    document.getElementById("btnTest").disabled = false;
+  }
+}
+
+async function saveConn() {
+  document.getElementById("btnSave").disabled = true;
+  progress(30);
+  toast("🔗", "Connecting to your mailbox…");
+
+  try {
+    const cfg = requireCfg();
+    const data = await api("/api/emails/sync", cfg);
+    S.connected = true;
+    S.emails = data.emails || [];
+    S.openId = null;
+    S.sel.clear();
+    document.getElementById("statusDot").classList.add("on");
+    document.getElementById("statusLabel").textContent = `${cfg.email} · ${S.emails.length} emails`;
+    updateCounts();
+    renderList();
+    renderDetail(null);
+    progress(100);
+    goPanel("inbox", document.getElementById("nav-inbox"));
+    toast("✓", `Connected. Loaded ${S.emails.length} emails.`);
+  } catch (error) {
+    progress(100);
+    toast("✗", error.message);
+  } finally {
+    document.getElementById("btnSave").disabled = false;
+  }
+}
+
+async function syncEmails() {
+  if (!S.connected && !S.cfg.email) return toast("⚠", "Connect your mailbox in Settings first");
+  progress(45);
+  toast("↻", "Syncing mailbox…");
+  try {
+    const cfg = requireCfg();
+    const currentOpenId = S.openId;
+    const data = await api("/api/emails/sync", cfg);
+    S.emails = data.emails || [];
+    S.view = [];
+    if (!S.emails.some((email) => email.id === currentOpenId)) {
+      S.openId = null;
+      renderDetail(null);
+    } else {
+      renderDetail(S.emails.find((email) => email.id === currentOpenId));
+    }
+    updateCounts();
+    renderList();
+    progress(100);
+    toast("✓", `Synced ${S.emails.length} emails`);
+  } catch (error) {
+    progress(100);
+    toast("✗", error.message);
+  }
+}
+
+function getFilteredEmails() {
+  let emails = [...S.emails];
+  if (S.filter) {
+    if (S.filter === "starred") emails = emails.filter((e) => e.star);
+    else if (S.filter === "unread") emails = emails.filter((e) => e.unread);
+    else if (S.filter === "Spam") emails = emails.filter((e) => e.spam);
+    else emails = emails.filter((e) => e.cat === S.filter);
+  }
+
+  if (S.search) {
+    const q = S.search.toLowerCase();
+    emails = emails.filter((e) =>
+      [e.subj, e.from, e.prev, e.addr, e.body].some((value) => String(value || "").toLowerCase().includes(q))
+    );
+  }
+  return emails;
+}
+
+function renderList() {
+  const list = document.getElementById("emailList");
+  const emails = getFilteredEmails();
+  S.view = emails;
+  document.getElementById("cbAll").checked = emails.length > 0 && emails.every((e) => S.sel.has(e.id));
+
+  if (!emails.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No emails here yet.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = emails.map((e) => `
+    <div class="erow ${e.unread ? "unread" : ""} ${e.spam ? "spam-flag" : ""} ${e.id === S.openId ? "cur" : ""}" onclick="openEmail(${e.id})">
+      <input type="checkbox" class="erow-chk" ${S.sel.has(e.id) ? "checked" : ""} onclick="event.stopPropagation()" onchange="toggleChk(${e.id},this)">
+      <div class="erow-av">${x((e.from || "?")[0])}</div>
+      <div class="erow-body">
+        <div class="erow-meta"><span class="erow-from">${x(e.from)}</span><span class="erow-date">${x(e.date)}</span></div>
+        <div class="erow-subj">${x(e.subj)}</div>
+        <div class="erow-prev">${x((e.prev || "").substring(0, 90))}${(e.prev || "").length > 90 ? "…" : ""}</div>
+        <div class="erow-tags">
+          <span class="etag etag-${cc(e.cat)}">${x(e.cat)}</span>
+          ${e.star ? '<span class="etag etag-star">★ starred</span>' : ""}
+          ${e.spam ? '<span class="etag etag-spam">⚠ spam</span>' : ""}
+        </div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function cc(cat) {
+  return { Work: "work", Finance: "finance", Social: "social", Newsletters: "promo", Travel: "travel", Spam: "spam" }[cat] || "work";
+}
+
+function openEmail(id) {
+  const email = S.emails.find((item) => item.id === id);
+  if (!email) return;
+  email.unread = false;
+  S.openId = id;
+  renderList();
+  renderDetail(email);
+  updateCounts();
+}
+
+function renderDetail(email) {
+  const p = document.getElementById("detailPane");
+  if (!email) {
+    p.innerHTML = `<div class="detail-empty"><div class="big">✉️</div><p>Select an email to read it</p></div>`;
+    return;
+  }
+
+  p.innerHTML = `
+    <div class="d-from">${x(email.from)}</div>
+    <div class="d-subj">${x(email.subj)}</div>
+    <div class="d-meta">
+      <span>${x(email.addr || "")}</span><span>·</span><span>${x(email.date || "")}</span><span>·</span>
+      <span class="etag etag-${cc(email.cat)}" style="font-size:10px">${x(email.cat)}</span>
+      ${email.star ? '<span class="etag etag-star" style="font-size:10px">★ starred</span>' : ""}
+    </div>
+    <div class="d-body">${x(email.body || email.prev || "(No body available)")}</div>
+    <div class="d-ai" id="aiBox" style="display:none">
+      <div class="d-ai-lbl">AI Summary</div>
+      <div class="d-ai-txt" id="aiTxt">Analyzing…</div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="summarize(${email.id})">✦ AI Summary</button>
+      <button class="btn btn-sm" onclick="toggleStar(${email.id})">${email.star ? "★ Unstar" : "☆ Star"}</button>
+      <button class="btn btn-danger btn-sm" onclick="delOne(${email.id})">🗑 Delete</button>
+    </div>
+  `;
+}
+
+async function summarize(id) {
+  const email = S.emails.find((item) => item.id === id);
+  if (!email || !S.cfg.okey) return toast("⚠", "Add your OpenAI key in Settings");
+
+  const box = document.getElementById("aiBox");
+  const txt = document.getElementById("aiTxt");
+  if (!box || !txt) return;
+
+  box.style.display = "block";
+  txt.textContent = "Analyzing…";
+
+  try {
+    const data = await api("/api/ai/summarize", {
+      apiKey: S.cfg.okey,
+      model: S.cfg.model,
+      email
+    });
+    txt.textContent = data.summary || "No summary returned.";
+  } catch (error) {
+    txt.textContent = "Error: " + error.message;
+  }
+}
+
+async function runAI() {
+  if (!S.connected) return toast("⚠", "Connect your mailbox first");
+  if (!S.cfg.okey) return toast("⚠", "Add your OpenAI key in Settings");
+
+  toast("✦", "Running inbox analysis…");
+  progress(45);
+
+  try {
+    const data = await api("/api/ai/brief", {
+      apiKey: S.cfg.okey,
+      model: S.cfg.model,
+      emails: S.emails
+    });
+    progress(100);
+    showBanner(data.brief || "Analysis complete.");
+    toast("✦", "Analysis done");
+  } catch (error) {
+    progress(100);
+    toast("✗", error.message);
+  }
+}
+
+function showBanner(msg) {
+  let b = document.getElementById("aiBanner");
+  if (!b) {
+    b = document.createElement("div");
+    b.id = "aiBanner";
+    b.className = "ai-banner";
+    const list = document.getElementById("emailList");
+    list.parentNode.insertBefore(b, list);
+  }
+  b.innerHTML = `<div class="ai-banner-lbl">✦ AI Analysis</div>${x(msg)}`;
+}
+
+function toggleChk(id, cb) {
+  if (cb.checked) S.sel.add(id);
+  else S.sel.delete(id);
+}
+
+function selAll(cb) {
+  S.view.forEach((e) => {
+    if (cb.checked) S.sel.add(e.id);
+    else S.sel.delete(e.id);
+  });
+  renderList();
+}
+
+function deleteSel() {
+  if (!S.sel.size) return toast("⚠", "Select emails first");
+  document.getElementById("delTxt").textContent = `Delete ${S.sel.size} email(s)? They will be moved to Trash.`;
+  document.getElementById("delModal").classList.add("open");
+}
+
+function delOne(id) {
+  S.sel.clear();
+  S.sel.add(id);
+  document.getElementById("delTxt").textContent = "Delete this email? It will be moved to Trash.";
+  document.getElementById("delModal").classList.add("open");
+}
+
+async function confirmDel() {
+  const ids = Array.from(S.sel);
+  if (!ids.length) return closeModal();
+
+  try {
+    await api("/api/emails/delete", { cfg: S.cfg, uids: ids });
+    S.emails = S.emails.filter((e) => !S.sel.has(e.id));
+    if (S.sel.has(S.openId)) {
+      S.openId = null;
+      renderDetail(null);
+    }
+    const n = S.sel.size;
+    S.sel.clear();
+    closeModal();
+    updateCounts();
+    renderList();
+    toast("🗑", `Deleted ${n} email(s)`);
+  } catch (error) {
+    toast("✗", error.message);
+  }
+}
+
+async function toggleStar(id) {
+  const email = S.emails.find((item) => item.id === id);
+  if (!email) return;
+
+  const nextStar = !email.star;
+  try {
+    await api("/api/emails/star", { cfg: S.cfg, uid: id, star: nextStar });
+    email.star = nextStar;
+    renderList();
+    renderDetail(email);
+    updateCounts();
+  } catch (error) {
+    toast("✗", error.message);
+  }
+}
+
+function closeModal() {
+  document.getElementById("delModal").classList.remove("open");
+}
+
+function doSearch(q) {
+  S.search = q.trim();
+  renderList();
+}
+
+async function genBrief() {
+  if (!S.connected) return toast("⚠", "Connect your mailbox first");
+  const body = document.getElementById("briefBody");
+  body.innerHTML = `<div class="empty-state"><div class="empty-icon">⏳</div><p>Generating your daily brief…</p></div>`;
+  progress(40);
+
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const total = S.emails.length;
+  const unread = S.emails.filter((e) => e.unread).length;
+  const starred = S.emails.filter((e) => e.star).length;
+  const spam = S.emails.filter((e) => e.spam).length;
+  const cats = {};
+  S.emails.forEach((e) => { cats[e.cat] = (cats[e.cat] || 0) + 1; });
+
+  let aiText = `You have ${unread} unread emails, ${starred} starred items, and ${spam} suspicious messages. Start with starred Work and Finance items first.`;
+
+  if (S.cfg.okey) {
+    try {
+      const data = await api("/api/ai/brief", {
+        apiKey: S.cfg.okey,
+        model: S.cfg.model,
+        emails: S.emails
+      });
+      aiText = data.brief || aiText;
+    } catch (error) {
+      aiText = `${aiText}\n\nAI note: ${error.message}`;
+    }
+  }
+
+  progress(100);
+
+  const imp = S.emails.filter((e) => e.star).slice(0, 4);
+  const spamList = S.emails.filter((e) => e.spam);
+
+  body.innerHTML = `
+    <div class="brief-top">
+      <span class="brief-h">Daily Brief</span>
+      <span class="brief-date">${today}</span>
+    </div>
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-n">${total}</div><div class="stat-l">Total</div></div>
+      <div class="stat-box"><div class="stat-n" style="color:var(--accent)">${unread}</div><div class="stat-l">Unread</div></div>
+      <div class="stat-box"><div class="stat-n" style="color:var(--yellow)">${starred}</div><div class="stat-l">Starred</div></div>
+      <div class="stat-box"><div class="stat-n" style="color:var(--muted)">${spam}</div><div class="stat-l">Spam</div></div>
+    </div>
+    <div class="ai-brief">
+      <div class="ai-brief-lbl">AI Summary</div>
+      <div class="ai-brief-txt">${x(aiText)}</div>
+    </div>
+    <div class="brief-cols">
+      <div>
+        <div class="bcard">
+          <div class="bcard-h">⭐ Starred — needs attention</div>
+          <div class="bcard-b">
+            ${imp.length ? imp.map((e) => `<div class="brow"><div class="brow-from">${x(e.addr)}</div><div class="brow-subj">${x(e.subj)}</div><div class="brow-sum">${x((e.prev || "").substring(0, 120))}</div></div>`).join("") : '<div class="brow" style="color:var(--muted)">No starred emails</div>'}
+          </div>
+        </div>
+        ${spam > 0 ? `
+        <div class="bcard" style="margin-top:16px">
+          <div class="bcard-h" style="color:var(--red)">⚠ Suggested for deletion</div>
+          <div class="bcard-b">
+            ${spamList.map((e) => `<div class="brow"><div class="brow-from" style="color:var(--red)">${x(e.addr)}</div><div class="brow-subj">${x(e.subj)}</div><div class="brow-sum" style="color:var(--red)">Server heuristics flagged this message as likely spam</div></div>`).join("")}
+            <div style="padding:12px 16px"><button class="btn btn-danger btn-sm" onclick="delSpam()">🗑 Delete all ${spam} spam emails</button></div>
+          </div>
+        </div>` : ""}
+      </div>
+      <div>
+        <div class="bcard">
+          <div class="bcard-h">📂 By category</div>
+          <div class="bcard-b">
+            ${Object.entries(cats).map(([c, n]) => `<div class="crow"><span class="cat-dot" style="background:${catColor(c)}"></span>${x(c)}<span class="crow-n">${n}</span></div>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  toast("📰", "Brief generated");
+}
+
+function catColor(c) {
+  return { Work: "#3ecf8e", Finance: "#f7c948", Social: "#4f8ef7", Newsletters: "#7c5cfc", Travel: "#00c8dc", Spam: "#f75f5f" }[c] || "#888";
+}
+
+async function delSpam() {
+  const ids = S.emails.filter((e) => e.spam).map((e) => e.id);
+  if (!ids.length) return;
+
+  try {
+    await api("/api/emails/delete", { cfg: S.cfg, uids: ids });
+    S.emails = S.emails.filter((e) => !e.spam);
+    updateCounts();
+    await genBrief();
+    renderList();
+    toast("🗑", `Deleted ${ids.length} spam emails`);
+  } catch (error) {
+    toast("✗", error.message);
+  }
+}
+
+function exportBrief() {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([document.getElementById("briefBody").innerText], { type: "text/plain" }));
+  a.download = "brief-" + new Date().toISOString().slice(0, 10) + ".txt";
+  a.click();
+  toast("↑", "Brief exported");
+}
+
+function updateCounts() {
+  const e = S.emails;
+  document.getElementById("cnt-all").textContent = e.length;
+  document.getElementById("cnt-star").textContent = e.filter((x) => x.star).length;
+  document.getElementById("cnt-unread").textContent = e.filter((x) => x.unread).length;
+  document.getElementById("cnt-work").textContent = e.filter((x) => x.cat === "Work").length;
+  document.getElementById("cnt-fin").textContent = e.filter((x) => x.cat === "Finance").length;
+  document.getElementById("cnt-soc").textContent = e.filter((x) => x.cat === "Social").length;
+  document.getElementById("cnt-news").textContent = e.filter((x) => x.cat === "Newsletters").length;
+  document.getElementById("cnt-trav").textContent = e.filter((x) => x.cat === "Travel").length;
+  document.getElementById("cnt-spam").textContent = e.filter((x) => x.spam).length;
+  if (S.connected && S.cfg.email) {
+    document.getElementById("statusLabel").textContent = `${S.cfg.email} · ${e.length} emails`;
+  }
+}
+
+function x(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function progress(p) {
+  const b = document.getElementById("pbar");
+  b.style.width = p + "%";
+  if (p >= 100) setTimeout(() => { b.style.width = "0"; }, 400);
+}
+
+let _tt;
+function toast(icon, text) {
+  document.getElementById("toastIcon").textContent = icon;
+  document.getElementById("toastText").textContent = text;
+  const el = document.getElementById("toast");
+  el.classList.add("show");
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+document.getElementById("delModal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeModal();
+});
+</script>
+</body>
+</html>
