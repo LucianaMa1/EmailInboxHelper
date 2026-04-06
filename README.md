@@ -1,6 +1,6 @@
 # EmailInboxHelper
 
-MailMind is a local-first email inbox helper with a polished single-page UI, IMAP sync, starring, delete-to-trash, and AI-powered summaries.
+Luci's Inbox Helper is a local-first email inbox helper with a polished single-page UI, IMAP sync, starring, delete-to-trash, and AI-powered summaries.
 
 ## Features
 
@@ -10,7 +10,7 @@ MailMind is a local-first email inbox helper with a polished single-page UI, IMA
 - Multi-provider AI setup for OpenAI, Anthropic, Kimi, DeepSeek, and Qwen
 - Prompt-driven inbox strategy generation before analysis starts
 - AI organization that applies the approved strategy to create custom labels and assignments
-- Optional mailbox label creation under `MailMind/<label>`
+- Optional mailbox label creation under `Luci Inbox/<label>`
 - Daily brief and per-email AI summary
 - Single-file frontend that is easy to host or customize
 

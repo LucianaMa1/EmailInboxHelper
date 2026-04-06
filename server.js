@@ -345,7 +345,7 @@ async function fetchEmails(cfg) {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, app: "MailMind local server" });
+  res.json({ ok: true, app: "Luci's Inbox Helper local server" });
 });
 
 app.post("/api/test-connection", async (req, res) => {
@@ -668,7 +668,7 @@ app.post("/api/mailboxes/create-labels", async (req, res) => {
       const createdPaths = [];
 
       for (const label of requested) {
-        const mailboxPath = `MailMind/${label}`;
+        const mailboxPath = `Luci Inbox/${label}`;
         if (!existingPaths.has(mailboxPath)) {
           await client.mailboxCreate(mailboxPath);
           existingPaths.add(mailboxPath);
@@ -692,5 +692,5 @@ app.get("/", (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`MailMind local server running at http://localhost:${PORT}/`);
+  console.log(`Luci's Inbox Helper local server running at http://localhost:${PORT}/`);
 });

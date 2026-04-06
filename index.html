@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MailMind</title>
+<title>Luci's Inbox Helper</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -225,7 +225,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 <div class="pbar" id="pbar"></div>
 
 <div class="topbar">
-  <div class="logo">✦ Mail<span class="logo-dot">Mind</span></div>
+  <div class="logo">✦ Luci's Inbox<span class="logo-dot"> Helper</span></div>
   <div class="topbar-sep"></div>
   <div class="status-pill">
     <div class="status-dot" id="statusDot"></div>
@@ -279,12 +279,15 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
       </div>
       <div class="setup-body">
         <div class="setup-inner">
-          <h1 class="setup-title">Connect your mailbox</h1>
-          <p class="setup-sub">Credentials are stored in your browser and sent only to the local server on your machine, your email provider, and OpenAI when you explicitly use AI features.</p>
+          <h1 class="setup-title">Luci's Inbox Helper</h1>
+          <p class="setup-sub">Set up your email, connect your AI model, and tell Luci what actually matters in your inbox. Credentials stay in your browser and are only sent to your mail provider and chosen AI provider when you explicitly use them.</p>
 
           <div class="step-card">
-            <div class="step-head"><span class="step-num">1</span> Choose email provider</div>
+            <div class="step-head"><span class="step-num">1</span> Connect your email</div>
             <div class="step-body">
+              <div class="fgroup">
+                <label>Email provider</label>
+              </div>
               <div class="provider-grid">
                 <div class="provider-tile" onclick="pickProv('gmail',this)"><span class="picon">📧</span>Gmail</div>
                 <div class="provider-tile" onclick="pickProv('outlook',this)"><span class="picon">💼</span>Outlook</div>
@@ -299,12 +302,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                   <div class="fgroup"><label>IMAP Port</label><input type="number" id="imapPort" value="993"></div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div class="step-card">
-            <div class="step-head"><span class="step-num">2</span> Account credentials</div>
-            <div class="step-body">
               <div class="fgroup">
                 <label>Email address</label>
                 <input type="email" id="emailAddr" placeholder="you@gmail.com">
@@ -314,11 +311,34 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                 <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
               </div>
               <div class="info-box" id="provHint"></div>
+              <div class="frow" style="margin-top:14px">
+                <div class="fgroup">
+                  <label>Emails to fetch</label>
+                  <select id="fetchCount">
+                    <option value="20">20 emails</option>
+                    <option value="50" selected>50 emails</option>
+                    <option value="100">100 emails</option>
+                    <option value="200">200 emails</option>
+                  </select>
+                </div>
+                <div class="fgroup">
+                  <label>Folder</label>
+                  <select id="mailFolder">
+                    <option value="INBOX">INBOX</option>
+                    <option value="[Gmail]/All Mail">[Gmail] All Mail</option>
+                  </select>
+                </div>
+              </div>
+              <div class="warn-box">
+                ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call AI through localhost.
+                <br><br>
+                If you see "connection failed", it usually means this page was opened directly from Finder or the local server is not running on <strong>http://localhost:3030</strong>.
+              </div>
             </div>
           </div>
 
           <div class="step-card">
-            <div class="step-head"><span class="step-num">3</span> AI auth & model</div>
+            <div class="step-head"><span class="step-num">2</span> Connect your AI API</div>
             <div class="step-body">
               <div class="frow">
                 <div class="fgroup">
@@ -349,16 +369,16 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
           </div>
 
           <div class="step-card">
-            <div class="step-head"><span class="step-num">4</span> AI prompt layer</div>
+            <div class="step-head"><span class="step-num">3</span> Tell Luci what you care about</div>
             <div class="step-body">
               <div class="fgroup">
-                <label>How should AI organize your inbox?</label>
-                <textarea id="aiPrompt" placeholder="Example: Create labels for client work, invoices, urgent follow-ups, travel, and low-priority newsletters. Star anything that needs a reply within 24 hours. Keep founders and paying customers easy to spot."></textarea>
-                <p class="hint">This prompt becomes your inbox policy. AI will use it to propose labels, assign every email to one label, and explain why.</p>
+                <label>What matters in your emails?</label>
+                <textarea id="aiPrompt" placeholder="Example: Separate real work from sales outreach. Create categories for urgent replies, FYI, newsletters worth learning from, notifications, and low-priority marketing. Never put cold outreach into work."></textarea>
+                <p class="hint">Tell Luci how to think about your inbox. This instruction becomes the strategy used to generate categories and classify mail.</p>
                 <div class="prompt-examples">
-                  <button type="button" class="prompt-chip" onclick="usePromptExample('Keep my inbox split into founders, paying customers, product alerts, invoices, and low-priority newsletters. Flag anything needing a response this week.')">Startup founder</button>
-                  <button type="button" class="prompt-chip" onclick="usePromptExample('Group mail into family, travel, bills, shopping, school, and promotional clutter. Make urgent deadlines obvious.')">Personal life</button>
-                  <button type="button" class="prompt-chip" onclick="usePromptExample('Organize by recruiting, interviews, offers, networking, learning, and noise. Surface emails that require follow-up in the next 3 days.')">Job search</button>
+                  <button type="button" class="prompt-chip" onclick="usePromptExample('Separate emails into To Do, To Follow Up, FYI, Notifications, Learn Newsletters, and Marketing. Never classify cold sales outreach or SEO pitches as work.')">Exec assistant</button>
+                  <button type="button" class="prompt-chip" onclick="usePromptExample('Keep client work, invoices, urgent replies, and product alerts separate from low-priority outreach. Put interesting newsletters into Learn Newsletter instead of Marketing.')">Founder mode</button>
+                  <button type="button" class="prompt-chip" onclick="usePromptExample('Organize mail into action needed, follow-up, FYI, school and family notifications, newsletters worth learning from, and promotional noise.')">Personal ops</button>
                 </div>
                 <div class="step-actions">
                   <button class="btn btn-primary btn-sm" onclick="applyStrategy()" id="btnApplyStrategy">Apply</button>
@@ -368,35 +388,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                   <div class="strategy-text" id="strategyText"></div>
                   <div class="strategy-list" id="strategyList"></div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="step-card">
-            <div class="step-head"><span class="step-num">5</span> Fetch settings</div>
-            <div class="step-body">
-              <div class="frow">
-                <div class="fgroup">
-                  <label>Emails to fetch</label>
-                  <select id="fetchCount">
-                    <option value="20">20 emails</option>
-                    <option value="50" selected>50 emails</option>
-                    <option value="100">100 emails</option>
-                    <option value="200">200 emails</option>
-                  </select>
-                </div>
-                <div class="fgroup">
-                  <label>Folder</label>
-                  <select id="mailFolder">
-                    <option value="INBOX">INBOX</option>
-                    <option value="[Gmail]/All Mail">[Gmail] All Mail</option>
-                  </select>
-                </div>
-              </div>
-              <div class="warn-box">
-                ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call OpenAI through localhost.
-                <br><br>
-                If you see "connection failed", it usually means this page was opened directly from Finder or the local server is not running on <strong>http://localhost:3030</strong>.
               </div>
             </div>
           </div>
@@ -545,7 +536,7 @@ async function api(path, payload) {
       body: JSON.stringify(payload || {})
     });
   } catch (error) {
-    throw new Error("Cannot reach the local MailMind server. Start `npm start`, then open http://localhost:3030/");
+    throw new Error("Cannot reach the local Luci's Inbox Helper server. Start `npm start`, then open http://localhost:3030/");
   }
 
   const data = await response.json().catch(() => ({}));
@@ -693,7 +684,7 @@ function updateHint(key) {
     gmail: `<strong>Gmail App Password:</strong><br>
       1. Enable 2-Step Verification at <a href="https://myaccount.google.com/security" target="_blank">myaccount.google.com/security</a><br>
       2. Go to <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a><br>
-      3. Create an app password for MailMind<br>
+      3. Create an app password for Luci's Inbox Helper<br>
       4. Paste the 16-character app password above`,
     outlook: `<strong>Outlook / Hotmail:</strong> Usually use your Microsoft password. If 2FA is enabled, create an app password in your Microsoft security settings.`,
     qq: `<strong>QQ Mail:</strong> Enable IMAP in settings and use the generated authorization code here.`,
@@ -997,9 +988,11 @@ async function runAI() {
     S.aiSummary = data.summary || "";
     S.emails = S.emails.map((email) => {
       const assignment = assignments.get(email.uid);
-      if (!assignment) return { ...email, aiLabel: "", aiReason: "", aiPriority: "" };
+      if (!assignment) return { ...email, aiLabel: "", aiReason: "", aiPriority: "", legacyCat: email.legacyCat || email.cat };
       return {
         ...email,
+        legacyCat: email.legacyCat || email.cat,
+        cat: assignment.label,
         aiLabel: assignment.label,
         aiReason: assignment.reason,
         aiPriority: assignment.priority
