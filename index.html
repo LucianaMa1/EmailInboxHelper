@@ -208,6 +208,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 .priority-high { color:#f75f5f; border-color:rgba(247,95,95,.3); background:rgba(247,95,95,.08); }
 .priority-medium { color:#f7c948; border-color:rgba(247,201,72,.25); background:rgba(247,201,72,.08); }
 .priority-low { color:#3ecf8e; border-color:rgba(62,207,142,.25); background:rgba(62,207,142,.08); }
+.action-badge { background:rgba(255,255,255,.06); color:var(--text); border:1px solid rgba(255,255,255,.12); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:9px; }
 
 @media (max-width: 900px) {
   .flow-row { grid-template-columns:1fr; }
@@ -903,7 +904,14 @@ async function syncEmails() {
         {
           cat: email.cat,
           legacyCat: email.legacyCat,
+          aiCategory: email.aiCategory,
           aiLabel: email.aiLabel,
+          aiAction: email.aiAction,
+          aiUrgency: email.aiUrgency,
+          aiImportance: email.aiImportance,
+          aiValue: email.aiValue,
+          aiEffort: email.aiEffort,
+          aiConfidence: email.aiConfidence,
           aiReason: email.aiReason,
           aiPriority: email.aiPriority
         }
@@ -938,8 +946,8 @@ function getFilteredEmails() {
     if (S.filter === "starred") emails = emails.filter((e) => e.star);
     else if (S.filter === "unread") emails = emails.filter((e) => e.unread);
     else if (S.filter === "Spam") emails = emails.filter((e) => e.spam);
-    else if (String(S.filter).startsWith("label:")) emails = emails.filter((e) => (e.aiLabel || e.cat) === String(S.filter).slice(6));
-    else if (S.aiLabels.length) emails = emails.filter((e) => (e.aiLabel || e.cat) === S.filter);
+    else if (String(S.filter).startsWith("label:")) emails = emails.filter((e) => (e.aiCategory || e.aiLabel || e.cat) === String(S.filter).slice(6));
+    else if (S.aiLabels.length) emails = emails.filter((e) => (e.aiCategory || e.aiLabel || e.cat) === S.filter);
     else emails = emails.filter((e) => e.cat === S.filter);
   }
 
@@ -972,10 +980,11 @@ function renderList() {
         <div class="erow-subj">${x(e.subj)}</div>
         <div class="erow-prev">${x((e.prev || "").substring(0, 90))}${(e.prev || "").length > 90 ? "…" : ""}</div>
         <div class="erow-tags">
-          ${e.aiLabel
-            ? `<span class="ai-badge">${x(e.aiLabel)}</span>`
+          ${(e.aiCategory || e.aiLabel)
+            ? `<span class="ai-badge">${x(e.aiCategory || e.aiLabel)}</span>`
             : `<span class="etag etag-${cc(e.cat)}">${x(e.cat)}</span>`}
-          ${e.aiPriority ? `<span class="priority-pill priority-${x(e.aiPriority)}">${x(e.aiPriority)}</span>` : ""}
+          ${e.aiAction ? `<span class="action-badge">${x(e.aiAction)}</span>` : ""}
+          ${e.aiUrgency ? `<span class="priority-pill priority-${x(e.aiUrgency)}">${x(e.aiUrgency)}</span>` : ""}
           ${e.star ? '<span class="etag etag-star">★ starred</span>' : ""}
           ${e.spam ? '<span class="etag etag-spam">⚠ spam</span>' : ""}
         </div>
@@ -1010,14 +1019,15 @@ function renderDetail(email) {
     <div class="d-subj">${x(email.subj)}</div>
     <div class="d-meta">
       <span>${x(email.addr || "")}</span><span>·</span><span>${x(email.date || "")}</span><span>·</span>
-      ${email.aiLabel
-        ? `<span class="ai-badge">${x(email.aiLabel)}</span>`
+      ${(email.aiCategory || email.aiLabel)
+        ? `<span class="ai-badge">${x(email.aiCategory || email.aiLabel)}</span>`
         : `<span class="etag etag-${cc(email.cat)}" style="font-size:10px">${x(email.cat)}</span>`}
-      ${email.aiPriority ? `<span class="priority-pill priority-${x(email.aiPriority)}">${x(email.aiPriority)}</span>` : ""}
+      ${email.aiAction ? `<span class="action-badge">${x(email.aiAction)}</span>` : ""}
+      ${email.aiUrgency ? `<span class="priority-pill priority-${x(email.aiUrgency)}">${x(email.aiUrgency)}</span>` : ""}
       ${email.star ? '<span class="etag etag-star" style="font-size:10px">★ starred</span>' : ""}
     </div>
     <div class="d-body">${x(email.body || email.prev || "(No body available)")}</div>
-    ${email.aiReason ? `<div class="d-ai" style="display:block;margin-bottom:16px"><div class="d-ai-lbl">AI Organizing Note</div><div class="d-ai-txt">${x(email.aiReason)}</div></div>` : ""}
+    ${email.aiReason ? `<div class="d-ai" style="display:block;margin-bottom:16px"><div class="d-ai-lbl">AI Decision</div><div class="d-ai-txt">Action: ${x(email.aiAction || "review")} · Urgency: ${x(email.aiUrgency || "medium")} · Importance: ${x(email.aiImportance || "medium")} · Value: ${x(email.aiValue || "medium")} · Effort: ${x(email.aiEffort || "medium")} · Confidence: ${x(email.aiConfidence || "medium")}<br><br>${x(email.aiReason)}</div></div>` : ""}
     <div class="d-ai" id="aiBox" style="display:none">
       <div class="d-ai-lbl">AI Summary</div>
       <div class="d-ai-txt" id="aiTxt">Analyzing…</div>
@@ -1120,18 +1130,24 @@ async function runAI() {
       emails: S.emails
     });
 
-    const assignments = new Map((data.assignments || []).map((item) => [item.uid, item]));
+    const decisions = new Map((data.decisions || []).map((item) => [item.uid, item]));
     S.aiSummary = data.summary || "";
     S.emails = S.emails.map((email) => {
-      const assignment = assignments.get(email.uid);
-      if (!assignment) return { ...email, aiLabel: "", aiReason: "", aiPriority: "", legacyCat: email.legacyCat || email.cat };
+      const decision = decisions.get(email.uid);
+      if (!decision) return { ...email, aiCategory: "", aiLabel: "", aiAction: "", aiUrgency: "", aiImportance: "", aiValue: "", aiEffort: "", aiConfidence: "", aiReason: "", legacyCat: email.legacyCat || email.cat };
       return {
         ...email,
         legacyCat: email.legacyCat || email.cat,
-        cat: assignment.label,
-        aiLabel: assignment.label,
-        aiReason: assignment.reason,
-        aiPriority: assignment.priority
+        cat: decision.category,
+        aiCategory: decision.category,
+        aiLabel: decision.category,
+        aiAction: decision.action,
+        aiUrgency: decision.urgency,
+        aiImportance: decision.importance,
+        aiValue: decision.value,
+        aiEffort: decision.effort,
+        aiConfidence: decision.confidence,
+        aiReason: decision.reason
       };
     });
 
@@ -1258,7 +1274,7 @@ async function genBrief(options = {}) {
   const spam = S.emails.filter((e) => e.spam).length;
   const cats = {};
   S.emails.forEach((e) => {
-    const key = S.aiLabels.length ? (e.aiLabel || "Unassigned") : e.cat;
+    const key = S.aiLabels.length ? (e.aiCategory || e.aiLabel || "Unassigned") : e.cat;
     cats[key] = (cats[key] || 0) + 1;
   });
 
@@ -1354,7 +1370,7 @@ async function delSpam() {
 
 async function createMailboxLabels() {
   if (!S.connected) return toast("⚠", "Connect your mailbox first");
-  if (!S.aiLabels.length) return toast("⚠", "Run AI Organize first so labels exist");
+  if (!S.aiLabels.length) return toast("⚠", "Run Start Analyze first so categories exist");
 
   try {
     const cfg = requireCfg();
@@ -1392,7 +1408,7 @@ function renderCategories() {
   const title = document.getElementById("categoryLabel");
   if (!root || !title) return;
 
-  const assignedLabelNames = Array.from(new Set(S.emails.map((email) => email.aiLabel).filter(Boolean)));
+  const assignedLabelNames = Array.from(new Set(S.emails.map((email) => email.aiCategory || email.aiLabel).filter(Boolean)));
   const derivedLabels = assignedLabelNames.length
     ? (S.aiLabels.length
         ? S.aiLabels.filter((label) => assignedLabelNames.includes(label.name))
@@ -1407,7 +1423,7 @@ function renderCategories() {
   if (derivedLabels.length) {
     title.textContent = "AI Categories";
     root.innerHTML = derivedLabels.map((label) => {
-      const count = S.emails.filter((email) => (email.aiLabel || email.cat) === label.name).length;
+      const count = S.emails.filter((email) => (email.aiCategory || email.aiLabel || email.cat) === label.name).length;
       return `
         <div class="label-item" onclick="goPanel('inbox',document.getElementById('nav-inbox'));setFilter('label:${jsq(label.name)}')">
           <span class="label-swatch" style="background:${x(label.color || "#4f8ef7")}"></span>

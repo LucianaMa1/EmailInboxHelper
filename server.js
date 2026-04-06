@@ -52,6 +52,10 @@ const AI_PROVIDERS = {
   }
 };
 
+const DECISION_CATEGORIES = ["opportunity", "relationship", "transactional", "promotional", "newsletter", "spam", "other"];
+const DECISION_ACTIONS = ["reply_now", "reply_later", "schedule", "review", "ignore", "archive", "delete", "surface_deal", "read_summary"];
+const DECISION_LEVELS = ["low", "medium", "high"];
+
 function resolveImapConfig(cfg = {}) {
   const preset = PROVIDERS[cfg.prov] || {};
   const host = cfg.imapHost || preset.host;
@@ -522,8 +526,8 @@ app.post("/api/ai/strategy", async (req, res) => {
         {
           role: "system",
           content: [
-            "You are an inbox operations strategist.",
-            "Turn the user's organizing instructions into a practical inbox strategy before any email-level action is taken.",
+            "You are an inbox decision strategist.",
+            "Turn the user's organizing instructions into a practical decision strategy before any email-level action is taken.",
             "Return strict JSON with this shape:",
             "{",
             '  "strategy": "short paragraph",',
@@ -532,12 +536,12 @@ app.post("/api/ai/strategy", async (req, res) => {
             '  "summarySections": ["string","string"]',
             "}",
             "Rules:",
-            "- Create 3 to 7 labels max.",
-            "- Label names must be short, distinct, and mailbox-safe.",
-            "- Prefer practical work labels over vague emotional ones.",
+            `- Labels must come only from these category enums: ${DECISION_CATEGORIES.join(", ")}.`,
+            "- Return 3 to 7 relevant categories from that enum list, not custom names.",
             "- Cold outbound sales, unsolicited pitches, link-building, agency offers, growth hacks, SEO outreach, guest post asks, and generic marketing blasts should not be placed in a real work bucket unless the user's instructions explicitly say so.",
-            "- If the inbox likely contains sales outreach, create a low-priority label such as Promotions, Sales Outreach, Noise, or Low Priority.",
-            "- summarySections should explain what the system will summarize or prioritize for the user."
+            "- If the inbox likely contains sales outreach, prefer promotional or spam depending on signal quality.",
+            `- The final analyze step will assign each email a category from that enum list and an action from: ${DECISION_ACTIONS.join(", ")}.`,
+            "- summarySections should explain what the system will prioritize or defer for the user."
           ].join("\n")
         },
         {
@@ -554,11 +558,11 @@ app.post("/api/ai/strategy", async (req, res) => {
 
     const safeLabels = labels
       .map((label, index) => ({
-        name: normalizeLabelName(label.name || `Label ${index + 1}`),
+        name: String(label.name || "").trim().toLowerCase(),
         description: String(label.description || "").trim(),
         color: /^#[0-9a-f]{6}$/i.test(label.color || "") ? label.color : ["#4f8ef7", "#3ecf8e", "#f7c948", "#f75f5f", "#00c8dc", "#7c5cfc"][index % 6]
       }))
-      .filter((label) => label.name);
+      .filter((label) => DECISION_CATEGORIES.includes(label.name));
 
     res.json({
       ok: true,
@@ -599,47 +603,66 @@ app.post("/api/ai/organize", async (req, res) => {
         {
           role: "system",
           content: [
-            "You are an inbox operations assistant.",
-            "Use the approved strategy and labels exactly as provided.",
+            "You are an email decision engine inside a productivity product.",
+            "Your job is not to chat. Your job is to convert incoming emails into structured decisions.",
             "Return strict JSON with this shape:",
             "{",
             '  "summary": "short paragraph",',
-            '  "assignments": [{"uid":123,"label":"string","reason":"short sentence","priority":"high|medium|low"}]',
+            '  "decisions": [{"uid":123,"category":"enum","action":"enum","urgency":"enum","importance":"enum","value":"enum","effort":"enum","confidence":"enum","reason":"short sentence"}]',
             "}",
             "Rules:",
-            "- Every assignment label must match one of the approved labels.",
-            "- Assign every email to exactly one approved label.",
-            "- Reason should explain why that email belongs there.",
-            "- Priority should reflect the user's stated urgency preferences.",
+            "- Be precise, concise, and decisive.",
+            "- Return valid JSON only.",
+            "- Use only the allowed enum values.",
+            "- If evidence is weak, lower confidence instead of guessing.",
+            "- Prefer usefulness over completeness.",
+            "- Focus on what the user should do, not on summarizing for its own sake.",
+            `- category must be one of: ${DECISION_CATEGORIES.join(", ")}.`,
+            `- action must be one of: ${DECISION_ACTIONS.join(", ")}.`,
+            `- urgency, importance, value, effort, confidence must each be one of: ${DECISION_LEVELS.join(", ")}.`,
+            "- Never invent facts not supported by the email content or provided context.",
             "- Do not anchor on legacy heuristic categories; classify from the actual sender, subject, preview, and body snippet.",
-            "- Cold sales outreach, vendor prospecting, SEO offers, backlink requests, agency pitches, and generic B2B marketing should go to a non-work / low-priority label when such a label exists."
+            "- Cold sales outreach, vendor prospecting, SEO offers, backlink requests, agency pitches, and generic B2B marketing should usually be promotional or spam, not opportunity or relationship."
           ].join("\n")
         },
         {
           role: "user",
-          content: `User instructions:\n${String(prompt || "").trim()}\n\nApproved strategy:\n${String(strategy || "").trim()}\n\nApproved labels:\n${JSON.stringify(usableLabels, null, 2)}\n\nEmails:\n${JSON.stringify(payload, null, 2)}`
+          content: `User instructions:\n${String(prompt || "").trim()}\n\nApproved strategy:\n${String(strategy || "").trim()}\n\nRelevant categories:\n${JSON.stringify(usableLabels, null, 2)}\n\nEmails:\n${JSON.stringify(payload, null, 2)}`
         }
       ]
     });
 
     const parsed = JSON.parse(extractJsonBlock(content));
-    const labelSet = new Set(usableLabels.map((label) => normalizeLabelName(label.name)));
-    const assignments = Array.isArray(parsed.assignments) ? parsed.assignments : [];
-    const safeAssignments = assignments
-      .map((assignment) => ({
-        uid: Number(assignment.uid),
-        label: normalizeLabelName(assignment.label),
-        reason: String(assignment.reason || "").trim(),
-        priority: ["high", "medium", "low"].includes(String(assignment.priority || "").toLowerCase())
-          ? String(assignment.priority).toLowerCase()
-          : "medium"
+    const labelSet = new Set(usableLabels.map((label) => String(label.name || "").trim().toLowerCase()));
+    const decisions = Array.isArray(parsed.decisions) ? parsed.decisions : [];
+    const safeDecisions = decisions
+      .map((decision) => ({
+        uid: Number(decision.uid),
+        category: String(decision.category || "").trim().toLowerCase(),
+        action: String(decision.action || "").trim().toLowerCase(),
+        urgency: String(decision.urgency || "").trim().toLowerCase(),
+        importance: String(decision.importance || "").trim().toLowerCase(),
+        value: String(decision.value || "").trim().toLowerCase(),
+        effort: String(decision.effort || "").trim().toLowerCase(),
+        confidence: String(decision.confidence || "").trim().toLowerCase(),
+        reason: String(decision.reason || "").trim()
       }))
-      .filter((assignment) => assignment.uid && labelSet.has(assignment.label));
+      .filter((decision) =>
+        decision.uid &&
+        DECISION_CATEGORIES.includes(decision.category) &&
+        labelSet.has(decision.category) &&
+        DECISION_ACTIONS.includes(decision.action) &&
+        DECISION_LEVELS.includes(decision.urgency) &&
+        DECISION_LEVELS.includes(decision.importance) &&
+        DECISION_LEVELS.includes(decision.value) &&
+        DECISION_LEVELS.includes(decision.effort) &&
+        DECISION_LEVELS.includes(decision.confidence)
+      );
 
     res.json({
       ok: true,
       summary: String(parsed.summary || "").trim(),
-      assignments: safeAssignments
+      decisions: safeDecisions
     });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
