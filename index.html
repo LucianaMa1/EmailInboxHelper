@@ -655,7 +655,7 @@ function requireCfg() {
 }
 
 function requireAICfg() {
-  const cfg = requireCfg();
+  const cfg = persistCfg();
   if (!cfg.aiKey) throw new Error("Please enter your AI API key.");
   if (!cfg.aiModel) throw new Error("Please choose an AI model.");
   return cfg;
@@ -947,8 +947,6 @@ async function summarize(id) {
 }
 
 async function applyStrategy() {
-  if (!S.connected) return toast("⚠", "Connect your mailbox first");
-
   let cfg;
   try {
     cfg = requireAICfg();
@@ -979,7 +977,7 @@ async function applyStrategy() {
     renderStrategyPreview();
     progress(100);
     showBanner(data.processingSummary || "Strategy generated.");
-    toast("✦", "Strategy ready");
+    toast("✦", S.connected ? "Strategy ready" : "Strategy ready. Connect and sync to analyze emails.");
   } catch (error) {
     progress(100);
     toast("✗", error.message);

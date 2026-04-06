@@ -489,11 +489,7 @@ app.post("/api/ai/strategy", async (req, res) => {
 
   try {
     if (!apiKey) throw new Error("Missing OpenAI API key.");
-    if (!Array.isArray(emails) || !emails.length) {
-      throw new Error("No emails available for strategy generation.");
-    }
-
-    const payload = emails.slice(0, 80).map((email) => ({
+    const payload = (Array.isArray(emails) ? emails : []).slice(0, 80).map((email) => ({
       uid: email.uid,
       from: email.from,
       address: email.addr,
@@ -533,7 +529,9 @@ app.post("/api/ai/strategy", async (req, res) => {
         },
         {
           role: "user",
-          content: `User organizing instructions:\n${promptLayer}\n\nEmails:\n${JSON.stringify(payload, null, 2)}`
+          content: payload.length
+            ? `User organizing instructions:\n${promptLayer}\n\nCurrent email snapshot:\n${JSON.stringify(payload, null, 2)}`
+            : `User organizing instructions:\n${promptLayer}\n\nNo emails have been synced yet. Generate a strategy and label system from the user's instructions alone, and make the processing summary explain that analysis will start after mailbox sync.`
         }
       ]
     });
