@@ -74,6 +74,12 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 .step-head { padding:14px 18px; border-bottom:1px solid var(--border); font-size:13px; font-weight:600; display:flex; align-items:center; gap:10px; background:var(--surface2); }
 .step-num { width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--mono); }
 .step-body { padding:18px; }
+.flow-row { display:grid; grid-template-columns:minmax(0, 1.6fr) auto minmax(240px, .95fr); gap:14px; align-items:start; }
+.flow-input { min-width:0; }
+.flow-action { display:flex; align-items:center; justify-content:center; min-height:100%; }
+.flow-result { min-width:0; padding:12px 14px; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,.02); }
+.flow-result-title { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.flow-result-text { font-size:12px; line-height:1.7; color:var(--muted); }
 
 .provider-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:4px; }
 .provider-tile { padding:12px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); cursor:pointer; text-align:center; transition:all .15s; font-size:12px; color:var(--muted); }
@@ -203,6 +209,11 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 .priority-medium { color:#f7c948; border-color:rgba(247,201,72,.25); background:rgba(247,201,72,.08); }
 .priority-low { color:#3ecf8e; border-color:rgba(62,207,142,.25); background:rgba(62,207,142,.08); }
 
+@media (max-width: 900px) {
+  .flow-row { grid-template-columns:1fr; }
+  .flow-action { justify-content:flex-start; }
+}
+
 .toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:11px 16px; border-radius:8px; font-size:12px; z-index:999; transform:translateY(60px); opacity:0; transition:all .25s ease; display:flex; align-items:center; gap:8px; max-width:320px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
 .toast.show { transform:none; opacity:1; }
 
@@ -284,58 +295,64 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
           <div class="step-card">
             <div class="step-head"><span class="step-num">1</span> Connect your email</div>
             <div class="step-body">
-              <div class="fgroup">
-                <label>Email provider</label>
-              </div>
-              <div class="provider-grid">
-                <div class="provider-tile" onclick="pickProv('gmail',this)"><span class="picon">📧</span>Gmail</div>
-                <div class="provider-tile" onclick="pickProv('outlook',this)"><span class="picon">💼</span>Outlook</div>
-                <div class="provider-tile" onclick="pickProv('qq',this)"><span class="picon">🐧</span>QQ Mail</div>
-                <div class="provider-tile" onclick="pickProv('163',this)"><span class="picon">☁️</span>163 Mail</div>
-                <div class="provider-tile" onclick="pickProv('yahoo',this)"><span class="picon">📮</span>Yahoo</div>
-                <div class="provider-tile" onclick="pickProv('custom',this)"><span class="picon">🔧</span>Custom</div>
-              </div>
-              <div id="customFields" style="display:none;margin-top:12px">
-                <div class="frow">
-                  <div class="fgroup"><label>IMAP Host</label><input type="text" id="imapHost" placeholder="imap.example.com"></div>
-                  <div class="fgroup"><label>IMAP Port</label><input type="number" id="imapPort" value="993"></div>
+              <div class="flow-row">
+                <div class="flow-input">
+                  <div class="fgroup">
+                    <label>Email provider</label>
+                  </div>
+                  <div class="provider-grid">
+                    <div class="provider-tile" onclick="pickProv('gmail',this)"><span class="picon">📧</span>Gmail</div>
+                    <div class="provider-tile" onclick="pickProv('outlook',this)"><span class="picon">💼</span>Outlook</div>
+                    <div class="provider-tile" onclick="pickProv('qq',this)"><span class="picon">🐧</span>QQ Mail</div>
+                    <div class="provider-tile" onclick="pickProv('163',this)"><span class="picon">☁️</span>163 Mail</div>
+                    <div class="provider-tile" onclick="pickProv('yahoo',this)"><span class="picon">📮</span>Yahoo</div>
+                    <div class="provider-tile" onclick="pickProv('custom',this)"><span class="picon">🔧</span>Custom</div>
+                  </div>
+                  <div id="customFields" style="display:none;margin-top:12px">
+                    <div class="frow">
+                      <div class="fgroup"><label>IMAP Host</label><input type="text" id="imapHost" placeholder="imap.example.com"></div>
+                      <div class="fgroup"><label>IMAP Port</label><input type="number" id="imapPort" value="993"></div>
+                    </div>
+                  </div>
+                  <div class="fgroup">
+                    <label>Email address</label>
+                    <input type="email" id="emailAddr" placeholder="you@gmail.com">
+                  </div>
+                  <div class="fgroup">
+                    <label>App password <span style="color:var(--accent);font-size:9px;text-transform:none;letter-spacing:0">(not your login password)</span></label>
+                    <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
+                  </div>
+                  <div class="info-box" id="provHint"></div>
+                  <div class="frow" style="margin-top:14px">
+                    <div class="fgroup">
+                      <label>Emails to fetch</label>
+                      <select id="fetchCount">
+                        <option value="20">20 emails</option>
+                        <option value="50" selected>50 emails</option>
+                        <option value="100">100 emails</option>
+                        <option value="200">200 emails</option>
+                        <option value="500">500 emails</option>
+                      </select>
+                    </div>
+                    <div class="fgroup">
+                      <label>Folder</label>
+                      <select id="mailFolder">
+                        <option value="INBOX">INBOX</option>
+                        <option value="[Gmail]/All Mail">[Gmail] All Mail</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div class="fgroup">
-                <label>Email address</label>
-                <input type="email" id="emailAddr" placeholder="you@gmail.com">
-              </div>
-              <div class="fgroup">
-                <label>App password <span style="color:var(--accent);font-size:9px;text-transform:none;letter-spacing:0">(not your login password)</span></label>
-                <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
-              </div>
-              <div class="info-box" id="provHint"></div>
-              <div class="frow" style="margin-top:14px">
-                <div class="fgroup">
-                  <label>Emails to fetch</label>
-                  <select id="fetchCount">
-                    <option value="20">20 emails</option>
-                    <option value="50" selected>50 emails</option>
-                    <option value="100">100 emails</option>
-                    <option value="200">200 emails</option>
-                    <option value="500">500 emails</option>
-                  </select>
+                <div class="flow-action">
+                  <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Connect &amp; Sync Inbox</button>
                 </div>
-                <div class="fgroup">
-                  <label>Folder</label>
-                  <select id="mailFolder">
-                    <option value="INBOX">INBOX</option>
-                    <option value="[Gmail]/All Mail">[Gmail] All Mail</option>
-                  </select>
+                <div class="flow-result">
+                  <div class="flow-result-title">Output</div>
+                  <div class="flow-result-text">Sync your latest inbox messages and unlock Luci's live brief, category counts, and AI analysis.</div>
+                  <div class="warn-box" style="margin-top:12px">
+                    ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call AI through localhost.
+                  </div>
                 </div>
-              </div>
-              <div class="warn-box">
-                ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call AI through localhost.
-                <br><br>
-                If you see "connection failed", it usually means this page was opened directly from Finder or the local server is not running on <strong>http://localhost:3030</strong>.
-              </div>
-              <div class="step-actions">
-                <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Connect &amp; Sync Inbox</button>
               </div>
             </div>
           </div>
@@ -343,53 +360,69 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
           <div class="step-card">
             <div class="step-head"><span class="step-num">2</span> Connect your AI API</div>
             <div class="step-body">
-              <div class="frow">
-                <div class="fgroup">
-                  <label>AI Provider</label>
-                  <select id="aiProvider" onchange="onAIProviderChange(this.value)">
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
-                    <option value="kimi">Kimi</option>
-                    <option value="deepseek">DeepSeek</option>
-                    <option value="qwen">Qwen</option>
-                  </select>
+              <div class="flow-row">
+                <div class="flow-input">
+                  <div class="frow">
+                    <div class="fgroup">
+                      <label>AI Provider</label>
+                      <select id="aiProvider" onchange="onAIProviderChange(this.value)">
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="kimi">Kimi</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="qwen">Qwen</option>
+                      </select>
+                    </div>
+                    <div class="fgroup">
+                      <label>Model</label>
+                      <select id="aiModel"></select>
+                    </div>
+                  </div>
+                  <div class="fgroup">
+                    <label>API Key</label>
+                    <input type="password" id="aiKey" placeholder="Paste provider API key">
+                    <p class="hint" id="aiHint">Used for summaries, strategy generation, and inbox analysis. Stored locally only in this browser.</p>
+                  </div>
                 </div>
-                <div class="fgroup">
-                  <label>Model</label>
-                  <select id="aiModel"></select>
+                <div class="flow-action">
+                  <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Email + AI</button>
+                </div>
+                <div class="flow-result">
+                  <div class="flow-result-title">Output</div>
+                  <div class="flow-result-text">Validate that your mailbox and chosen AI provider can both be reached from Luci's local server.</div>
+                  <div class="test-result" id="testResult"></div>
                 </div>
               </div>
-              <div class="fgroup">
-                <label>API Key</label>
-                <input type="password" id="aiKey" placeholder="Paste provider API key">
-                <p class="hint" id="aiHint">Used for summaries, strategy generation, and inbox analysis. Stored locally only in this browser.</p>
-              </div>
-              <div class="step-actions">
-                <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Email + AI</button>
-              </div>
-              <div class="test-result" id="testResult"></div>
             </div>
           </div>
 
           <div class="step-card">
             <div class="step-head"><span class="step-num">3</span> Tell Luci what you care about</div>
             <div class="step-body">
-              <div class="fgroup">
-                <label>What matters in your emails?</label>
-                <textarea id="aiPrompt" placeholder="Example: Separate real work from sales outreach. Create categories for urgent replies, FYI, newsletters worth learning from, notifications, and low-priority marketing. Never put cold outreach into work."></textarea>
-                <p class="hint">Tell Luci how to think about your inbox. This instruction becomes the strategy used to generate categories and classify mail.</p>
-                <div class="prompt-examples">
-                  <button type="button" class="prompt-chip" onclick="usePromptExample('Separate emails into To Do, To Follow Up, FYI, Notifications, Learn Newsletters, and Marketing. Never classify cold sales outreach or SEO pitches as work.')">Exec assistant</button>
-                  <button type="button" class="prompt-chip" onclick="usePromptExample('Keep client work, invoices, urgent replies, and product alerts separate from low-priority outreach. Put interesting newsletters into Learn Newsletter instead of Marketing.')">Founder mode</button>
-                  <button type="button" class="prompt-chip" onclick="usePromptExample('Organize mail into action needed, follow-up, FYI, school and family notifications, newsletters worth learning from, and promotional noise.')">Personal ops</button>
+              <div class="flow-row">
+                <div class="flow-input">
+                  <div class="fgroup">
+                    <label>What matters in your emails?</label>
+                    <textarea id="aiPrompt" placeholder="Example: Separate real work from sales outreach. Create categories for urgent replies, FYI, newsletters worth learning from, notifications, and low-priority marketing. Never put cold outreach into work."></textarea>
+                    <p class="hint">Tell Luci how to think about your inbox. This instruction becomes the strategy used to generate categories and classify mail.</p>
+                    <div class="prompt-examples">
+                      <button type="button" class="prompt-chip" onclick="usePromptExample('Separate emails into To Do, To Follow Up, FYI, Notifications, Learn Newsletters, and Marketing. Never classify cold sales outreach or SEO pitches as work.')">Exec assistant</button>
+                      <button type="button" class="prompt-chip" onclick="usePromptExample('Keep client work, invoices, urgent replies, and product alerts separate from low-priority outreach. Put interesting newsletters into Learn Newsletter instead of Marketing.')">Founder mode</button>
+                      <button type="button" class="prompt-chip" onclick="usePromptExample('Organize mail into action needed, follow-up, FYI, school and family notifications, newsletters worth learning from, and promotional noise.')">Personal ops</button>
+                    </div>
+                  </div>
                 </div>
-                <div class="step-actions">
+                <div class="flow-action">
                   <button class="btn btn-primary btn-sm" onclick="applyStrategy()" id="btnApplyStrategy">Apply</button>
                 </div>
-                <div class="strategy-card" id="strategyPreview" style="display:none">
-                  <div class="strategy-title">Generated Strategy</div>
-                  <div class="strategy-text" id="strategyText"></div>
-                  <div class="strategy-list" id="strategyList"></div>
+                <div class="flow-result">
+                  <div class="flow-result-title">Output</div>
+                  <div class="flow-result-text">Generate a category strategy first. Then Start Analyze in Inbox to assign actual emails into those categories.</div>
+                  <div class="strategy-card" id="strategyPreview" style="display:none">
+                    <div class="strategy-title">Generated Strategy</div>
+                    <div class="strategy-text" id="strategyText"></div>
+                    <div class="strategy-list" id="strategyList"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1390,7 +1423,7 @@ function renderCategories() {
   }
 
   if (plannedLabelCount) {
-    title.textContent = "Planned Categories";
+    title.textContent = "Categories";
     root.innerHTML = `<div class="label-desc">Strategy generated. Run Start Analyze to assign emails into these categories.</div>`;
     return;
   }
