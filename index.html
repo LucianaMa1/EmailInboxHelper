@@ -318,6 +318,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                     <option value="50" selected>50 emails</option>
                     <option value="100">100 emails</option>
                     <option value="200">200 emails</option>
+                    <option value="500">500 emails</option>
                   </select>
                 </div>
                 <div class="fgroup">
@@ -951,7 +952,7 @@ function renderList() {
 }
 
 function cc(cat) {
-  return { Work: "work", Finance: "finance", Social: "social", Newsletters: "promo", Travel: "travel", Spam: "spam" }[cat] || "work";
+  return { Work: "work", Finance: "finance", Social: "social", Newsletters: "promo", Promotions: "promo", Travel: "travel", Spam: "spam", Other: "work" }[cat] || "work";
 }
 
 function openEmail(id) {
@@ -1399,9 +1400,11 @@ function renderCategories() {
     { name: "Work", color: "#3ecf8e" },
     { name: "Finance", color: "#f7c948" },
     { name: "Social", color: "#4f8ef7" },
+    { name: "Promotions", color: "#ff8a3d" },
     { name: "Newsletters", color: "#7c5cfc" },
     { name: "Travel", color: "#00c8dc" },
-    { name: "Spam", color: "#f75f5f" }
+    { name: "Spam", color: "#f75f5f" },
+    { name: "Other", color: "#7a7a86" }
   ];
   root.innerHTML = fallback.map((item) => {
     const count = item.name === "Spam"

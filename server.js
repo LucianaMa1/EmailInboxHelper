@@ -104,6 +104,7 @@ function categorizeEmail({ from, subject, text }) {
     { cat: "Finance", patterns: ["invoice", "statement", "payment", "bank", "payroll", "receipt", "refund", "deposit", "billing"] },
     { cat: "Travel", patterns: ["flight", "booking", "hotel", "trip", "airline", "reservation", "itinerary"] },
     { cat: "Social", patterns: ["linkedin", "twitter", "x ", "instagram", "facebook", "mention", "comment", "follower"] },
+    { cat: "Promotions", patterns: ["clearance", "% off", "percent off", "up to ", "sale", "deal", "shop now", "score now", "limited time", "free shipping", "ends tonight", "doorbuster", "promo code", "coupon", "buy now", "black friday", "cyber monday"] },
     { cat: "Newsletters", patterns: ["newsletter", "digest", "weekly", "daily", "unsubscribe", "product hunt", "substack"] },
     { cat: "Spam", patterns: ["winner", "claim now", "free iphone", "lottery", "urgent action", "crypto giveaway", "prize"] }
   ];
@@ -114,7 +115,7 @@ function categorizeEmail({ from, subject, text }) {
     }
   }
 
-  return "Work";
+  return "Other";
 }
 
 function isSpam({ from, subject, text }) {
@@ -289,7 +290,7 @@ async function findTrashMailbox(client) {
 
 async function fetchEmails(cfg) {
   return withImap(cfg, async (client, imapConfig) => {
-    const count = Math.max(1, Math.min(Number(cfg.count || 50), 200));
+    const count = Math.max(1, Math.min(Number(cfg.count || 50), 500));
     const lock = await client.getMailboxLock(imapConfig.folder);
 
     try {
