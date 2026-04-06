@@ -19,7 +19,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "8mb" }));
 
 const PROVIDERS = {
   gmail: { host: "imap.gmail.com", port: 993, secure: true, folder: "INBOX" },

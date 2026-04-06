@@ -816,6 +816,32 @@ function usePromptExample(value) {
   document.getElementById("aiPrompt").value = value;
 }
 
+function buildEmailSnapshot(email, mode = "strategy") {
+  const snapshot = {
+    uid: email.uid,
+    from: email.from,
+    addr: email.addr,
+    subj: email.subj,
+    prev: email.prev,
+    cat: email.aiCategory || email.aiLabel || email.cat || "",
+    star: Boolean(email.star),
+    unread: Boolean(email.unread),
+    spam: Boolean(email.spam)
+  };
+
+  const body = String(email.body || "").replace(/\s+/g, " ").trim();
+  if (body) {
+    snapshot.body = body.slice(0, mode === "organize" ? 2000 : 1200);
+  }
+
+  return snapshot;
+}
+
+function buildEmailPayload(mode = "strategy") {
+  const limit = mode === "brief" ? 20 : 80;
+  return S.emails.slice(0, limit).map((email) => buildEmailSnapshot(email, mode));
+}
+
 function populateModelOptions(provider, selectedValue) {
   const select = document.getElementById("aiModel");
   const models = AI_MODELS[provider] || AI_MODELS.openai;
@@ -1140,7 +1166,7 @@ async function applyStrategy() {
       apiKey: cfg.aiKey,
       model: cfg.aiModel,
       prompt: cfg.aiPrompt,
-      emails: S.emails
+      emails: buildEmailPayload("strategy")
     });
 
     S.aiLabels = data.labels || [];
@@ -1185,7 +1211,7 @@ async function runAI() {
       prompt: cfg.aiPrompt,
       strategy: S.aiStrategy,
       labels: S.aiLabels,
-      emails: S.emails
+      emails: buildEmailPayload("organize")
     });
 
     const decisions = new Map((data.decisions || []).map((item) => [item.uid, item]));
@@ -1344,7 +1370,7 @@ async function genBrief(options = {}) {
         provider: S.cfg.aiProvider || "openai",
         apiKey: S.cfg.aiKey || S.cfg.okey,
         model: S.cfg.aiModel || S.cfg.model,
-        emails: S.emails
+        emails: buildEmailPayload("brief")
       });
       aiText = data.brief || aiText;
     } catch (error) {
