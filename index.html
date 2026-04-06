@@ -66,22 +66,25 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 
 /* SETUP */
 .setup-body { flex:1; overflow-y:auto; padding:32px; display:flex; justify-content:center; }
-.setup-inner { width:100%; max-width:560px; }
+.setup-inner { width:100%; max-width:1360px; }
 .setup-title { font-size:22px; font-weight:600; margin-bottom:6px; }
 .setup-sub { font-size:13px; color:var(--muted); margin-bottom:28px; line-height:1.6; }
+.setup-steps { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; align-items:start; margin-bottom:16px; }
 
 .step-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:16px; overflow:hidden; }
+.setup-steps .step-card { margin-bottom:0; height:100%; display:flex; flex-direction:column; }
 .step-head { padding:14px 18px; border-bottom:1px solid var(--border); font-size:13px; font-weight:600; display:flex; align-items:center; gap:10px; background:var(--surface2); }
 .step-num { width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--mono); }
 .step-body { padding:18px; }
+.setup-steps .step-body { flex:1; display:flex; flex-direction:column; }
 .step-intro { font-size:13px; line-height:1.7; color:var(--muted); margin-bottom:16px; }
-.step-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.step-grid { display:grid; grid-template-columns:1fr; gap:12px; }
 .step-controls { min-width:0; }
 .step-panel { min-width:0; padding:14px 16px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.02); }
 .step-panel-label { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
 .step-panel-title { font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text); }
 .step-panel-text { font-size:12px; line-height:1.7; color:var(--muted); }
-.step-footer { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:16px; }
+.step-footer { display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-top:auto; padding-top:16px; }
 .step-status { min-height:18px; font-family:var(--mono); font-size:11px; color:var(--muted); }
 .step-status.ok { color:var(--green); }
 .step-status.warn { color:#f7d97c; }
@@ -217,7 +220,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 .action-badge { background:rgba(255,255,255,.06); color:var(--text); border:1px solid rgba(255,255,255,.12); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:9px; }
 
 @media (max-width: 900px) {
-  .step-grid { grid-template-columns:1fr; }
+  .setup-steps { grid-template-columns:1fr; }
 }
 
 .toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:11px 16px; border-radius:8px; font-size:12px; z-index:999; transform:translateY(60px); opacity:0; transition:all .25s ease; display:flex; align-items:center; gap:8px; max-width:320px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
@@ -298,147 +301,149 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
           <h1 class="setup-title">Luci's Inbox Helper</h1>
           <p class="setup-sub">Set up your email, connect your AI model, and tell Luci what actually matters in your inbox. Credentials stay in your browser and are only sent to your mail provider and chosen AI provider when you explicitly use them.</p>
 
-          <div class="step-card">
-            <div class="step-head"><span class="step-num">1</span> Connect your email</div>
-            <div class="step-body">
-              <p class="step-intro">Choose your mailbox, add your email credentials, and pull in the latest messages so Luci has real inbox context to work with.</p>
-              <div class="step-grid">
-                <div class="step-controls">
-                  <div class="fgroup">
-                    <label>Email provider</label>
+          <div class="setup-steps">
+            <div class="step-card">
+              <div class="step-head"><span class="step-num">1</span> Connect your email</div>
+              <div class="step-body">
+                <p class="step-intro">Choose your mailbox, add your email credentials, and pull in the latest messages so Luci has real inbox context to work with.</p>
+                <div class="step-grid">
+                  <div class="step-controls">
+                    <div class="fgroup">
+                      <label>Email provider</label>
+                    </div>
+                    <div class="provider-grid">
+                      <div class="provider-tile" onclick="pickProv('gmail',this)"><span class="picon">📧</span>Gmail</div>
+                      <div class="provider-tile" onclick="pickProv('outlook',this)"><span class="picon">💼</span>Outlook</div>
+                      <div class="provider-tile" onclick="pickProv('qq',this)"><span class="picon">🐧</span>QQ Mail</div>
+                      <div class="provider-tile" onclick="pickProv('163',this)"><span class="picon">☁️</span>163 Mail</div>
+                      <div class="provider-tile" onclick="pickProv('yahoo',this)"><span class="picon">📮</span>Yahoo</div>
+                      <div class="provider-tile" onclick="pickProv('custom',this)"><span class="picon">🔧</span>Custom</div>
+                    </div>
+                    <div id="customFields" style="display:none;margin-top:12px">
+                      <div class="frow">
+                        <div class="fgroup"><label>IMAP Host</label><input type="text" id="imapHost" placeholder="imap.example.com"></div>
+                        <div class="fgroup"><label>IMAP Port</label><input type="number" id="imapPort" value="993"></div>
+                      </div>
+                    </div>
+                    <div class="fgroup">
+                      <label>Email address</label>
+                      <input type="email" id="emailAddr" placeholder="you@gmail.com">
+                    </div>
+                    <div class="fgroup">
+                      <label>App password <span style="color:var(--accent);font-size:9px;text-transform:none;letter-spacing:0">(not your login password)</span></label>
+                      <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
+                    </div>
+                    <div class="info-box" id="provHint"></div>
+                    <div class="frow" style="margin-top:14px">
+                      <div class="fgroup">
+                        <label>Emails to fetch</label>
+                        <select id="fetchCount">
+                          <option value="20">20 emails</option>
+                          <option value="50" selected>50 emails</option>
+                          <option value="100">100 emails</option>
+                          <option value="200">200 emails</option>
+                          <option value="500">500 emails</option>
+                        </select>
+                      </div>
+                      <div class="fgroup">
+                        <label>Folder</label>
+                        <select id="mailFolder">
+                          <option value="INBOX">INBOX</option>
+                          <option value="[Gmail]/All Mail">[Gmail] All Mail</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                  <div class="provider-grid">
-                    <div class="provider-tile" onclick="pickProv('gmail',this)"><span class="picon">📧</span>Gmail</div>
-                    <div class="provider-tile" onclick="pickProv('outlook',this)"><span class="picon">💼</span>Outlook</div>
-                    <div class="provider-tile" onclick="pickProv('qq',this)"><span class="picon">🐧</span>QQ Mail</div>
-                    <div class="provider-tile" onclick="pickProv('163',this)"><span class="picon">☁️</span>163 Mail</div>
-                    <div class="provider-tile" onclick="pickProv('yahoo',this)"><span class="picon">📮</span>Yahoo</div>
-                    <div class="provider-tile" onclick="pickProv('custom',this)"><span class="picon">🔧</span>Custom</div>
+                  <div class="step-panel">
+                    <div class="step-panel-label">What happens next</div>
+                    <div class="step-panel-title">Sync inbox context</div>
+                    <div class="step-panel-text">Luci will connect through the local Node server, fetch your latest messages, and unlock the Daily Brief plus inbox analysis.</div>
+                    <div class="warn-box" style="margin-top:12px">
+                      ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call AI through localhost.
+                    </div>
                   </div>
-                  <div id="customFields" style="display:none;margin-top:12px">
+                </div>
+                <div class="step-footer">
+                  <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Connect &amp; Sync Inbox</button>
+                  <div class="step-status" id="emailStatus">No mailbox connected yet.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="step-card">
+              <div class="step-head"><span class="step-num">2</span> Connect your AI API</div>
+              <div class="step-body">
+                <p class="step-intro">Connect the model you want Luci to use for strategy generation, decisioning, summaries, and the Daily Brief.</p>
+                <div class="step-grid">
+                  <div class="step-controls">
                     <div class="frow">
-                      <div class="fgroup"><label>IMAP Host</label><input type="text" id="imapHost" placeholder="imap.example.com"></div>
-                      <div class="fgroup"><label>IMAP Port</label><input type="number" id="imapPort" value="993"></div>
-                    </div>
-                  </div>
-                  <div class="fgroup">
-                    <label>Email address</label>
-                    <input type="email" id="emailAddr" placeholder="you@gmail.com">
-                  </div>
-                  <div class="fgroup">
-                    <label>App password <span style="color:var(--accent);font-size:9px;text-transform:none;letter-spacing:0">(not your login password)</span></label>
-                    <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
-                  </div>
-                  <div class="info-box" id="provHint"></div>
-                  <div class="frow" style="margin-top:14px">
-                    <div class="fgroup">
-                      <label>Emails to fetch</label>
-                      <select id="fetchCount">
-                        <option value="20">20 emails</option>
-                        <option value="50" selected>50 emails</option>
-                        <option value="100">100 emails</option>
-                        <option value="200">200 emails</option>
-                        <option value="500">500 emails</option>
-                      </select>
+                      <div class="fgroup">
+                        <label>AI Provider</label>
+                        <select id="aiProvider" onchange="onAIProviderChange(this.value)">
+                          <option value="openai">OpenAI</option>
+                          <option value="anthropic">Anthropic</option>
+                          <option value="kimi">Kimi</option>
+                          <option value="deepseek">DeepSeek</option>
+                          <option value="qwen">Qwen</option>
+                        </select>
+                      </div>
+                      <div class="fgroup">
+                        <label>Model</label>
+                        <select id="aiModel"></select>
+                      </div>
                     </div>
                     <div class="fgroup">
-                      <label>Folder</label>
-                      <select id="mailFolder">
-                        <option value="INBOX">INBOX</option>
-                        <option value="[Gmail]/All Mail">[Gmail] All Mail</option>
-                      </select>
+                      <label>API Key</label>
+                      <input type="password" id="aiKey" placeholder="Paste provider API key">
+                      <p class="hint" id="aiHint">Used for summaries, strategy generation, and inbox analysis. Stored locally only in this browser.</p>
                     </div>
                   </div>
-                </div>
-                <div class="step-panel">
-                  <div class="step-panel-label">What happens next</div>
-                  <div class="step-panel-title">Sync inbox context</div>
-                  <div class="step-panel-text">Luci will connect through the local Node server, fetch your latest messages, and unlock the Daily Brief plus inbox analysis.</div>
-                  <div class="warn-box" style="margin-top:12px">
-                    ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call AI through localhost.
+                  <div class="step-panel">
+                    <div class="step-panel-label">What happens next</div>
+                    <div class="step-panel-title">Validate your model connection</div>
+                    <div class="step-panel-text">Run a quick check from Luci's local server so you know your email setup and chosen AI provider can both be reached before analysis starts.</div>
+                    <div class="test-result" id="testResult"></div>
                   </div>
                 </div>
-              </div>
-              <div class="step-footer">
-                <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Connect &amp; Sync Inbox</button>
-                <div class="step-status" id="emailStatus">No mailbox connected yet.</div>
+                <div class="step-footer">
+                  <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Email + AI</button>
+                  <div class="step-status" id="aiStatus">Model not validated yet.</div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="step-card">
-            <div class="step-head"><span class="step-num">2</span> Connect your AI API</div>
-            <div class="step-body">
-              <p class="step-intro">Connect the model you want Luci to use for strategy generation, decisioning, summaries, and the Daily Brief.</p>
-              <div class="step-grid">
-                <div class="step-controls">
-                  <div class="frow">
+            <div class="step-card">
+              <div class="step-head"><span class="step-num">3</span> Tell Luci what you care about</div>
+              <div class="step-body">
+                <p class="step-intro">Describe the decisions you want Luci to make. This becomes the operating strategy Luci uses when it later analyzes the inbox.</p>
+                <div class="step-grid">
+                  <div class="step-controls">
                     <div class="fgroup">
-                      <label>AI Provider</label>
-                      <select id="aiProvider" onchange="onAIProviderChange(this.value)">
-                        <option value="openai">OpenAI</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="kimi">Kimi</option>
-                        <option value="deepseek">DeepSeek</option>
-                        <option value="qwen">Qwen</option>
-                      </select>
-                    </div>
-                    <div class="fgroup">
-                      <label>Model</label>
-                      <select id="aiModel"></select>
+                      <label>What matters in your emails?</label>
+                      <textarea id="aiPrompt" placeholder="Example: Separate real work from sales outreach. Create categories for urgent replies, FYI, newsletters worth learning from, notifications, and low-priority marketing. Never put cold outreach into work."></textarea>
+                      <p class="hint">Tell Luci how to think about your inbox. This instruction becomes the strategy used to generate categories and classify mail.</p>
+                      <div class="prompt-examples">
+                        <button type="button" class="prompt-chip" onclick="usePromptExample('Separate emails into To Do, To Follow Up, FYI, Notifications, Learn Newsletters, and Marketing. Never classify cold sales outreach or SEO pitches as work.')">Exec assistant</button>
+                        <button type="button" class="prompt-chip" onclick="usePromptExample('Keep client work, invoices, urgent replies, and product alerts separate from low-priority outreach. Put interesting newsletters into Learn Newsletter instead of Marketing.')">Founder mode</button>
+                        <button type="button" class="prompt-chip" onclick="usePromptExample('Organize mail into action needed, follow-up, FYI, school and family notifications, newsletters worth learning from, and promotional noise.')">Personal ops</button>
+                      </div>
                     </div>
                   </div>
-                  <div class="fgroup">
-                    <label>API Key</label>
-                    <input type="password" id="aiKey" placeholder="Paste provider API key">
-                    <p class="hint" id="aiHint">Used for summaries, strategy generation, and inbox analysis. Stored locally only in this browser.</p>
-                  </div>
-                </div>
-                <div class="step-panel">
-                  <div class="step-panel-label">What happens next</div>
-                  <div class="step-panel-title">Validate your model connection</div>
-                  <div class="step-panel-text">Run a quick check from Luci's local server so you know your email setup and chosen AI provider can both be reached before analysis starts.</div>
-                  <div class="test-result" id="testResult"></div>
-                </div>
-              </div>
-              <div class="step-footer">
-                <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Email + AI</button>
-                <div class="step-status" id="aiStatus">Model not validated yet.</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="step-card">
-            <div class="step-head"><span class="step-num">3</span> Tell Luci what you care about</div>
-            <div class="step-body">
-              <p class="step-intro">Describe the decisions you want Luci to make. This becomes the operating strategy Luci uses when it later analyzes the inbox.</p>
-              <div class="step-grid">
-                <div class="step-controls">
-                  <div class="fgroup">
-                    <label>What matters in your emails?</label>
-                    <textarea id="aiPrompt" placeholder="Example: Separate real work from sales outreach. Create categories for urgent replies, FYI, newsletters worth learning from, notifications, and low-priority marketing. Never put cold outreach into work."></textarea>
-                    <p class="hint">Tell Luci how to think about your inbox. This instruction becomes the strategy used to generate categories and classify mail.</p>
-                    <div class="prompt-examples">
-                      <button type="button" class="prompt-chip" onclick="usePromptExample('Separate emails into To Do, To Follow Up, FYI, Notifications, Learn Newsletters, and Marketing. Never classify cold sales outreach or SEO pitches as work.')">Exec assistant</button>
-                      <button type="button" class="prompt-chip" onclick="usePromptExample('Keep client work, invoices, urgent replies, and product alerts separate from low-priority outreach. Put interesting newsletters into Learn Newsletter instead of Marketing.')">Founder mode</button>
-                      <button type="button" class="prompt-chip" onclick="usePromptExample('Organize mail into action needed, follow-up, FYI, school and family notifications, newsletters worth learning from, and promotional noise.')">Personal ops</button>
+                  <div class="step-panel">
+                    <div class="step-panel-label">What happens next</div>
+                    <div class="step-panel-title">Generate Luci's strategy</div>
+                    <div class="step-panel-text">Apply your prompt first to draft the decision system and categories. Then use Start Analyze in Inbox to classify actual messages.</div>
+                    <div class="strategy-card" id="strategyPreview" style="display:none">
+                      <div class="strategy-title">Generated Strategy</div>
+                      <div class="strategy-text" id="strategyText"></div>
+                      <div class="strategy-list" id="strategyList"></div>
                     </div>
                   </div>
                 </div>
-                <div class="step-panel">
-                  <div class="step-panel-label">What happens next</div>
-                  <div class="step-panel-title">Generate Luci's strategy</div>
-                  <div class="step-panel-text">Apply your prompt first to draft the decision system and categories. Then use Start Analyze in Inbox to classify actual messages.</div>
-                  <div class="strategy-card" id="strategyPreview" style="display:none">
-                    <div class="strategy-title">Generated Strategy</div>
-                    <div class="strategy-text" id="strategyText"></div>
-                    <div class="strategy-list" id="strategyList"></div>
-                  </div>
+                <div class="step-footer">
+                  <button class="btn btn-primary btn-sm" onclick="applyStrategy()" id="btnApplyStrategy">Apply</button>
+                  <div class="step-status" id="strategyStatus">No strategy generated yet.</div>
                 </div>
-              </div>
-              <div class="step-footer">
-                <button class="btn btn-primary btn-sm" onclick="applyStrategy()" id="btnApplyStrategy">Apply</button>
-                <div class="step-status" id="strategyStatus">No strategy generated yet.</div>
               </div>
             </div>
           </div>
