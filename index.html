@@ -74,12 +74,18 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 .step-head { padding:14px 18px; border-bottom:1px solid var(--border); font-size:13px; font-weight:600; display:flex; align-items:center; gap:10px; background:var(--surface2); }
 .step-num { width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--mono); }
 .step-body { padding:18px; }
-.flow-row { display:grid; grid-template-columns:minmax(0, 1.6fr) auto minmax(240px, .95fr); gap:14px; align-items:start; }
-.flow-input { min-width:0; }
-.flow-action { display:flex; align-items:center; justify-content:center; min-height:100%; }
-.flow-result { min-width:0; padding:12px 14px; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,.02); }
-.flow-result-title { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
-.flow-result-text { font-size:12px; line-height:1.7; color:var(--muted); }
+.step-intro { font-size:13px; line-height:1.7; color:var(--muted); margin-bottom:16px; }
+.step-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.step-controls { min-width:0; }
+.step-panel { min-width:0; padding:14px 16px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.02); }
+.step-panel-label { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.step-panel-title { font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text); }
+.step-panel-text { font-size:12px; line-height:1.7; color:var(--muted); }
+.step-footer { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:16px; }
+.step-status { min-height:18px; font-family:var(--mono); font-size:11px; color:var(--muted); }
+.step-status.ok { color:var(--green); }
+.step-status.warn { color:#f7d97c; }
+.step-status.err { color:var(--red); }
 
 .provider-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:4px; }
 .provider-tile { padding:12px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); cursor:pointer; text-align:center; transition:all .15s; font-size:12px; color:var(--muted); }
@@ -211,8 +217,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 .action-badge { background:rgba(255,255,255,.06); color:var(--text); border:1px solid rgba(255,255,255,.12); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:9px; }
 
 @media (max-width: 900px) {
-  .flow-row { grid-template-columns:1fr; }
-  .flow-action { justify-content:flex-start; }
+  .step-grid { grid-template-columns:1fr; }
 }
 
 .toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:11px 16px; border-radius:8px; font-size:12px; z-index:999; transform:translateY(60px); opacity:0; transition:all .25s ease; display:flex; align-items:center; gap:8px; max-width:320px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
@@ -296,8 +301,9 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
           <div class="step-card">
             <div class="step-head"><span class="step-num">1</span> Connect your email</div>
             <div class="step-body">
-              <div class="flow-row">
-                <div class="flow-input">
+              <p class="step-intro">Choose your mailbox, add your email credentials, and pull in the latest messages so Luci has real inbox context to work with.</p>
+              <div class="step-grid">
+                <div class="step-controls">
                   <div class="fgroup">
                     <label>Email provider</label>
                   </div>
@@ -344,16 +350,18 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                     </div>
                   </div>
                 </div>
-                <div class="flow-action">
-                  <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Connect &amp; Sync Inbox</button>
-                </div>
-                <div class="flow-result">
-                  <div class="flow-result-title">Output</div>
-                  <div class="flow-result-text">Sync your latest inbox messages and unlock Luci's live brief, category counts, and AI analysis.</div>
+                <div class="step-panel">
+                  <div class="step-panel-label">What happens next</div>
+                  <div class="step-panel-title">Sync inbox context</div>
+                  <div class="step-panel-text">Luci will connect through the local Node server, fetch your latest messages, and unlock the Daily Brief plus inbox analysis.</div>
                   <div class="warn-box" style="margin-top:12px">
                     ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call AI through localhost.
                   </div>
                 </div>
+              </div>
+              <div class="step-footer">
+                <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Connect &amp; Sync Inbox</button>
+                <div class="step-status" id="emailStatus">No mailbox connected yet.</div>
               </div>
             </div>
           </div>
@@ -361,8 +369,9 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
           <div class="step-card">
             <div class="step-head"><span class="step-num">2</span> Connect your AI API</div>
             <div class="step-body">
-              <div class="flow-row">
-                <div class="flow-input">
+              <p class="step-intro">Connect the model you want Luci to use for strategy generation, decisioning, summaries, and the Daily Brief.</p>
+              <div class="step-grid">
+                <div class="step-controls">
                   <div class="frow">
                     <div class="fgroup">
                       <label>AI Provider</label>
@@ -385,14 +394,16 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                     <p class="hint" id="aiHint">Used for summaries, strategy generation, and inbox analysis. Stored locally only in this browser.</p>
                   </div>
                 </div>
-                <div class="flow-action">
-                  <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Email + AI</button>
-                </div>
-                <div class="flow-result">
-                  <div class="flow-result-title">Output</div>
-                  <div class="flow-result-text">Validate that your mailbox and chosen AI provider can both be reached from Luci's local server.</div>
+                <div class="step-panel">
+                  <div class="step-panel-label">What happens next</div>
+                  <div class="step-panel-title">Validate your model connection</div>
+                  <div class="step-panel-text">Run a quick check from Luci's local server so you know your email setup and chosen AI provider can both be reached before analysis starts.</div>
                   <div class="test-result" id="testResult"></div>
                 </div>
+              </div>
+              <div class="step-footer">
+                <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Email + AI</button>
+                <div class="step-status" id="aiStatus">Model not validated yet.</div>
               </div>
             </div>
           </div>
@@ -400,8 +411,9 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
           <div class="step-card">
             <div class="step-head"><span class="step-num">3</span> Tell Luci what you care about</div>
             <div class="step-body">
-              <div class="flow-row">
-                <div class="flow-input">
+              <p class="step-intro">Describe the decisions you want Luci to make. This becomes the operating strategy Luci uses when it later analyzes the inbox.</p>
+              <div class="step-grid">
+                <div class="step-controls">
                   <div class="fgroup">
                     <label>What matters in your emails?</label>
                     <textarea id="aiPrompt" placeholder="Example: Separate real work from sales outreach. Create categories for urgent replies, FYI, newsletters worth learning from, notifications, and low-priority marketing. Never put cold outreach into work."></textarea>
@@ -413,18 +425,20 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                     </div>
                   </div>
                 </div>
-                <div class="flow-action">
-                  <button class="btn btn-primary btn-sm" onclick="applyStrategy()" id="btnApplyStrategy">Apply</button>
-                </div>
-                <div class="flow-result">
-                  <div class="flow-result-title">Output</div>
-                  <div class="flow-result-text">Generate a category strategy first. Then Start Analyze in Inbox to assign actual emails into those categories.</div>
+                <div class="step-panel">
+                  <div class="step-panel-label">What happens next</div>
+                  <div class="step-panel-title">Generate Luci's strategy</div>
+                  <div class="step-panel-text">Apply your prompt first to draft the decision system and categories. Then use Start Analyze in Inbox to classify actual messages.</div>
                   <div class="strategy-card" id="strategyPreview" style="display:none">
                     <div class="strategy-title">Generated Strategy</div>
                     <div class="strategy-text" id="strategyText"></div>
                     <div class="strategy-list" id="strategyList"></div>
                   </div>
                 </div>
+              </div>
+              <div class="step-footer">
+                <button class="btn btn-primary btn-sm" onclick="applyStrategy()" id="btnApplyStrategy">Apply</button>
+                <div class="step-status" id="strategyStatus">No strategy generated yet.</div>
               </div>
             </div>
           </div>
@@ -591,6 +605,7 @@ async function api(path, payload) {
   }
 
   hydrateForm();
+  updateStepStatuses();
   updateCounts();
   renderCategories();
   renderBriefHome();
@@ -650,6 +665,7 @@ function readCfgFromForm() {
 function persistCfg() {
   S.cfg = readCfgFromForm();
   localStorage.setItem("mm_cfg", JSON.stringify(S.cfg));
+  updateStepStatuses();
   return S.cfg;
 }
 
@@ -675,6 +691,39 @@ function hasEmailConfig(cfg = S.cfg) {
 
 function hasAIConfig(cfg = S.cfg) {
   return Boolean(cfg?.aiKey && cfg?.aiModel);
+}
+
+function setStepStatus(id, text, tone = "") {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = `step-status${tone ? " " + tone : ""}`;
+}
+
+function updateStepStatuses() {
+  const cfg = S.cfg || {};
+
+  if (S.connected && cfg.email) {
+    setStepStatus("emailStatus", `Connected to ${cfg.email}${S.emails.length ? ` · ${S.emails.length} emails synced` : ""}`, "ok");
+  } else if (hasEmailConfig(cfg)) {
+    setStepStatus("emailStatus", "Email details saved locally. Sync when you're ready.");
+  } else {
+    setStepStatus("emailStatus", "No mailbox connected yet.");
+  }
+
+  if (hasAIConfig(cfg)) {
+    setStepStatus("aiStatus", `Ready to test ${(cfg.aiProvider || "openai").replace(/^./, (m) => m.toUpperCase())} / ${cfg.aiModel || "model"}.`);
+  } else {
+    setStepStatus("aiStatus", "Model not validated yet.");
+  }
+
+  if (S.aiStrategy) {
+    setStepStatus("strategyStatus", S.connected ? "Strategy ready. Start Analyze can now classify the synced inbox." : "Strategy ready. Connect your inbox next to run analysis.", "ok");
+  } else if (cfg.aiPrompt) {
+    setStepStatus("strategyStatus", "Prompt saved locally. Apply to generate Luci's decision strategy.");
+  } else {
+    setStepStatus("strategyStatus", "No strategy generated yet.");
+  }
 }
 
 function renderBriefHome() {
@@ -827,15 +876,18 @@ async function testConn() {
   res.className = "test-result";
   res.style.display = "block";
   document.getElementById("btnTest").disabled = true;
+  setStepStatus("aiStatus", "Testing mailbox and AI connection…");
 
   try {
     const cfg = requireCfg();
     const data = await api("/api/test-connection", cfg);
     res.textContent = "✓  " + data.message;
     res.className = "test-result test-ok";
+    setStepStatus("aiStatus", "Email + AI validation passed.", "ok");
   } catch (error) {
     res.textContent = "✗  " + error.message;
     res.className = "test-result test-err";
+    setStepStatus("aiStatus", error.message, "err");
   } finally {
     document.getElementById("btnTest").disabled = false;
   }
@@ -863,6 +915,7 @@ async function saveConn(options = {}) {
     renderStrategyPreview();
     renderList();
     renderDetail(null);
+    updateStepStatuses();
     progress(100);
     if (navigate === "brief") {
       goPanel("brief", document.getElementById("nav-brief"));
@@ -878,6 +931,7 @@ async function saveConn(options = {}) {
       toast("✓", `Connected. Loaded ${S.emails.length} emails.`);
     }
   } catch (error) {
+    setStepStatus("emailStatus", error.message, "err");
     progress(100);
     if (!silent) {
       toast("✗", error.message);
@@ -932,6 +986,7 @@ async function syncEmails() {
     renderCategories();
     renderStrategyPreview();
     renderList();
+    updateStepStatuses();
     progress(100);
     toast("✓", `Synced ${S.emails.length} emails`);
   } catch (error) {
@@ -1077,6 +1132,7 @@ async function applyStrategy() {
   document.getElementById("btnApplyStrategy").disabled = true;
   toast("✦", "Generating strategy from your instruction…");
   progress(45);
+  setStepStatus("strategyStatus", "Generating strategy from your prompt…");
 
   try {
     const data = await api("/api/ai/strategy", {
@@ -1093,10 +1149,12 @@ async function applyStrategy() {
     S.aiSummarySections = data.summarySections || [];
     renderCategories();
     renderStrategyPreview();
+    updateStepStatuses();
     progress(100);
     showBanner(data.processingSummary || "Strategy generated.");
     toast("✦", S.connected ? "Strategy ready" : "Strategy ready. Connect and sync to analyze emails.");
   } catch (error) {
+    setStepStatus("strategyStatus", error.message, "err");
     progress(100);
     toast("✗", error.message);
   } finally {
