@@ -1222,6 +1222,7 @@ async function runAI() {
     if (S.openId) {
       renderDetail(S.emails.find((email) => email.id === S.openId) || null);
     }
+    await genBrief({ silent: true });
     progress(100);
     showBanner(data.summary || "Analysis complete.");
     toast("✦", "Decision refresh complete");
