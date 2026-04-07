@@ -164,6 +164,22 @@ function buildEmailContext(email = {}, mode = "strategy") {
   return base;
 }
 
+function getDefaultDecisionLabels() {
+  return [
+    { name: "action", description: "Requires decision, action, coordination, approval, or execution.", color: "#4f8ef7" },
+    { name: "info", description: "Informational only. Useful to read, but no clear action is required.", color: "#3ecf8e" },
+    { name: "promo", description: "Promotional, marketing, newsletter-like, or low-value bulk communication.", color: "#f7c948" }
+  ];
+}
+
+function sanitizeStrategySections(sections = []) {
+  return (Array.isArray(sections) ? sections : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .filter((item) => !/category\s*:\s*/i.test(item))
+    .slice(0, 4);
+}
+
 function resolveAIConfig({ provider, apiKey, model }) {
   const resolved = AI_PROVIDERS[provider || "openai"] || AI_PROVIDERS.openai;
   if (!apiKey) {
@@ -564,14 +580,15 @@ app.post("/api/ai/strategy", async (req, res) => {
       }))
       .filter((label) => DECISION_CATEGORIES.includes(label.name));
 
+    const finalLabels = safeLabels.length ? safeLabels : getDefaultDecisionLabels();
+    const finalSections = sanitizeStrategySections(parsed.summarySections);
+
     res.json({
       ok: true,
       strategy: String(parsed.strategy || "").trim(),
       processingSummary: String(parsed.processingSummary || "").trim(),
-      labels: safeLabels,
-      summarySections: Array.isArray(parsed.summarySections)
-        ? parsed.summarySections.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 4)
-        : []
+      labels: finalLabels,
+      summarySections: finalSections
     });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });

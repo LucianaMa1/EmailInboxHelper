@@ -1597,7 +1597,7 @@ function renderStrategyPreview() {
   const items = [
     S.aiProcessingSummary,
     ...S.aiLabels.map((label) => `Category: ${label.name} — ${label.description || "AI-generated grouping"}`),
-    ...S.aiSummarySections
+    ...S.aiSummarySections.filter((item) => !/^category\s*:/i.test(String(item || "").trim()))
   ].filter(Boolean);
   list.innerHTML = items.map((item) => `<div>${x(item)}</div>`).join("");
 }
