@@ -991,12 +991,11 @@ async function syncEmails() {
           legacyCat: email.legacyCat,
           aiCategory: email.aiCategory,
           aiLabel: email.aiLabel,
-          aiAction: email.aiAction,
           aiUrgency: email.aiUrgency,
-          aiImportance: email.aiImportance,
-          aiValue: email.aiValue,
           aiEffort: email.aiEffort,
-          aiConfidence: email.aiConfidence,
+          aiRequiresReply: email.aiRequiresReply,
+          aiFollowUp: email.aiFollowUp,
+          aiConvertToTask: email.aiConvertToTask,
           aiReason: email.aiReason,
           aiPriority: email.aiPriority
         }
@@ -1069,8 +1068,9 @@ function renderList() {
           ${(e.aiCategory || e.aiLabel)
             ? `<span class="ai-badge">${x(e.aiCategory || e.aiLabel)}</span>`
             : `<span class="etag etag-${cc(e.cat)}">${x(e.cat)}</span>`}
-          ${e.aiAction ? `<span class="action-badge">${x(e.aiAction)}</span>` : ""}
+          ${typeof e.aiRequiresReply === "boolean" ? `<span class="action-badge">${e.aiRequiresReply ? "needs reply" : "no reply"}</span>` : ""}
           ${e.aiUrgency ? `<span class="priority-pill priority-${x(e.aiUrgency)}">${x(e.aiUrgency)}</span>` : ""}
+          ${e.aiEffort ? `<span class="action-badge">${x(e.aiEffort)}</span>` : ""}
           ${e.star ? '<span class="etag etag-star">★ starred</span>' : ""}
           ${e.spam ? '<span class="etag etag-spam">⚠ spam</span>' : ""}
         </div>
@@ -1108,12 +1108,13 @@ function renderDetail(email) {
       ${(email.aiCategory || email.aiLabel)
         ? `<span class="ai-badge">${x(email.aiCategory || email.aiLabel)}</span>`
         : `<span class="etag etag-${cc(email.cat)}" style="font-size:10px">${x(email.cat)}</span>`}
-      ${email.aiAction ? `<span class="action-badge">${x(email.aiAction)}</span>` : ""}
+      ${typeof email.aiRequiresReply === "boolean" ? `<span class="action-badge">${email.aiRequiresReply ? "needs reply" : "no reply"}</span>` : ""}
       ${email.aiUrgency ? `<span class="priority-pill priority-${x(email.aiUrgency)}">${x(email.aiUrgency)}</span>` : ""}
+      ${email.aiEffort ? `<span class="action-badge">${x(email.aiEffort)}</span>` : ""}
       ${email.star ? '<span class="etag etag-star" style="font-size:10px">★ starred</span>' : ""}
     </div>
     <div class="d-body">${x(email.body || email.prev || "(No body available)")}</div>
-    ${email.aiReason ? `<div class="d-ai" style="display:block;margin-bottom:16px"><div class="d-ai-lbl">AI Decision</div><div class="d-ai-txt">Action: ${x(email.aiAction || "review")} · Urgency: ${x(email.aiUrgency || "medium")} · Importance: ${x(email.aiImportance || "medium")} · Value: ${x(email.aiValue || "medium")} · Effort: ${x(email.aiEffort || "medium")} · Confidence: ${x(email.aiConfidence || "medium")}<br><br>${x(email.aiReason)}</div></div>` : ""}
+    ${email.aiReason ? `<div class="d-ai" style="display:block;margin-bottom:16px"><div class="d-ai-lbl">AI Decision</div><div class="d-ai-txt">Needs reply: ${typeof email.aiRequiresReply === "boolean" ? (email.aiRequiresReply ? "Yes" : "No") : "Unknown"} · Urgency: ${x(email.aiUrgency || "medium")} · Effort: ${x(email.aiEffort || "quick")} · Follow-up: ${typeof email.aiFollowUp === "boolean" ? (email.aiFollowUp ? "Yes" : "No") : "Unknown"} · Convert to task: ${typeof email.aiConvertToTask === "boolean" ? (email.aiConvertToTask ? "Yes" : "No") : "Unknown"}<br><br>${x(email.aiReason)}</div></div>` : ""}
     <div class="d-ai" id="aiBox" style="display:none">
       <div class="d-ai-lbl">AI Summary</div>
       <div class="d-ai-txt" id="aiTxt">Analyzing…</div>
@@ -1223,19 +1224,18 @@ async function runAI() {
     S.aiSummary = data.summary || "";
     S.emails = S.emails.map((email) => {
       const decision = decisions.get(email.uid);
-      if (!decision) return { ...email, aiCategory: "", aiLabel: "", aiAction: "", aiUrgency: "", aiImportance: "", aiValue: "", aiEffort: "", aiConfidence: "", aiReason: "", legacyCat: email.legacyCat || email.cat };
+      if (!decision) return { ...email, aiCategory: "", aiLabel: "", aiUrgency: "", aiEffort: "", aiRequiresReply: "", aiFollowUp: "", aiConvertToTask: "", aiReason: "", legacyCat: email.legacyCat || email.cat };
       return {
         ...email,
         legacyCat: email.legacyCat || email.cat,
         cat: decision.category,
         aiCategory: decision.category,
         aiLabel: decision.category,
-        aiAction: decision.action,
         aiUrgency: decision.urgency,
-        aiImportance: decision.importance,
-        aiValue: decision.value,
         aiEffort: decision.effort,
-        aiConfidence: decision.confidence,
+        aiRequiresReply: decision.requires_reply,
+        aiFollowUp: decision.follow_up,
+        aiConvertToTask: decision.convert_to_task,
         aiReason: decision.reason
       };
     });
@@ -1367,7 +1367,7 @@ async function genBrief(options = {}) {
     cats[key] = (cats[key] || 0) + 1;
   });
 
-  let aiText = `You have ${unread} unread emails, ${starred} starred items, and ${spam} suspicious messages. Start with starred Work and Finance items first.`;
+  let aiText = `You have ${unread} unread emails, ${starred} starred items, and ${spam} suspicious messages. Start with high-urgency action emails and anything that needs a reply.`;
 
   if (S.cfg.aiKey || S.cfg.okey) {
     try {
@@ -1518,7 +1518,7 @@ function renderCategories() {
           <span class="label-swatch" style="background:${x(label.color || "#4f8ef7")}"></span>
           <div class="label-meta">
             <div class="label-name">${x(label.name)}</div>
-            <div class="label-desc">${x(label.description || "AI-generated category")}</div>
+            <div class="label-desc">${x(label.description || "AI-generated decision category")}</div>
           </div>
           <span class="nav-count">${count}</span>
         </div>
@@ -1578,7 +1578,7 @@ function renderStrategyPreview() {
   text.textContent = S.aiStrategy;
   const items = [
     S.aiProcessingSummary,
-    ...S.aiLabels.map((label) => `Label: ${label.name} — ${label.description || "AI-generated grouping"}`),
+    ...S.aiLabels.map((label) => `Category: ${label.name} — ${label.description || "AI-generated grouping"}`),
     ...S.aiSummarySections
   ].filter(Boolean);
   list.innerHTML = items.map((item) => `<div>${x(item)}</div>`).join("");

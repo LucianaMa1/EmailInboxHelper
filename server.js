@@ -52,9 +52,9 @@ const AI_PROVIDERS = {
   }
 };
 
-const DECISION_CATEGORIES = ["opportunity", "relationship", "transactional", "promotional", "newsletter", "spam", "other"];
-const DECISION_ACTIONS = ["reply_now", "reply_later", "schedule", "review", "ignore", "archive", "delete", "surface_deal", "read_summary"];
-const DECISION_LEVELS = ["low", "medium", "high"];
+const DECISION_CATEGORIES = ["action", "info", "promo"];
+const DECISION_URGENCY_LEVELS = ["low", "medium", "high"];
+const DECISION_EFFORT_LEVELS = ["quick", "deep"];
 
 function resolveImapConfig(cfg = {}) {
   const preset = PROVIDERS[cfg.prov] || {};
@@ -537,10 +537,10 @@ app.post("/api/ai/strategy", async (req, res) => {
             "}",
             "Rules:",
             `- Labels must come only from these category enums: ${DECISION_CATEGORIES.join(", ")}.`,
-            "- Return 3 to 7 relevant categories from that enum list, not custom names.",
+            "- Return 1 to 3 relevant categories from that enum list, not custom names.",
             "- Cold outbound sales, unsolicited pitches, link-building, agency offers, growth hacks, SEO outreach, guest post asks, and generic marketing blasts should not be placed in a real work bucket unless the user's instructions explicitly say so.",
-            "- If the inbox likely contains sales outreach, prefer promotional or spam depending on signal quality.",
-            `- The final analyze step will assign each email a category from that enum list and an action from: ${DECISION_ACTIONS.join(", ")}.`,
+            "- Sales outreach, newsletters, bulk marketing, coupons, and low-value blasts should usually be promo unless the user's instructions clearly say otherwise.",
+            "- The final analyze step will classify each email independently and decide whether it needs a reply, follow-up, or task conversion.",
             "- summarySections should explain what the system will prioritize or defer for the user."
           ].join("\n")
         },
@@ -608,21 +608,26 @@ app.post("/api/ai/organize", async (req, res) => {
             "Return strict JSON with this shape:",
             "{",
             '  "summary": "short paragraph",',
-            '  "decisions": [{"uid":123,"category":"enum","action":"enum","urgency":"enum","importance":"enum","value":"enum","effort":"enum","confidence":"enum","reason":"short sentence"}]',
+            '  "decisions": [{"uid":123,"category":"enum","requires_reply":true,"urgency":"enum","effort":"enum","follow_up":true,"convert_to_task":true,"reason":"short sentence"}]',
             "}",
             "Rules:",
+            "- Evaluate each email independently and make one decision per email.",
             "- Be precise, concise, and decisive.",
             "- Return valid JSON only.",
             "- Use only the allowed enum values.",
-            "- If evidence is weak, lower confidence instead of guessing.",
-            "- Prefer usefulness over completeness.",
+            "- Prefer practical executive-assistant judgment over literal keyword matching.",
             "- Focus on what the user should do, not on summarizing for its own sake.",
             `- category must be one of: ${DECISION_CATEGORIES.join(", ")}.`,
-            `- action must be one of: ${DECISION_ACTIONS.join(", ")}.`,
-            `- urgency, importance, value, effort, confidence must each be one of: ${DECISION_LEVELS.join(", ")}.`,
+            `- urgency must be one of: ${DECISION_URGENCY_LEVELS.join(", ")}.`,
+            `- effort must be one of: ${DECISION_EFFORT_LEVELS.join(", ")}.`,
+            "- requires_reply must be true if the sender reasonably expects a response, otherwise false.",
+            "- follow_up must be true if the email implies continued tracking, checking back, waiting, or future action.",
+            "- convert_to_task must be true if the email should become tracked work rather than just reference or reading.",
+            '- If an email needs action but not necessarily a reply, category can still be "action".',
+            '- Promotional emails should usually be category "promo", requires_reply false, and convert_to_task false unless there is a clear reason otherwise.',
             "- Never invent facts not supported by the email content or provided context.",
             "- Do not anchor on legacy heuristic categories; classify from the actual sender, subject, preview, and body snippet.",
-            "- Cold sales outreach, vendor prospecting, SEO offers, backlink requests, agency pitches, and generic B2B marketing should usually be promotional or spam, not opportunity or relationship."
+            '- Cold sales outreach, vendor prospecting, SEO offers, backlink requests, agency pitches, retail deals, and generic B2B marketing should usually be "promo".'
           ].join("\n")
         },
         {
@@ -639,24 +644,19 @@ app.post("/api/ai/organize", async (req, res) => {
       .map((decision) => ({
         uid: Number(decision.uid),
         category: String(decision.category || "").trim().toLowerCase(),
-        action: String(decision.action || "").trim().toLowerCase(),
+        requires_reply: Boolean(decision.requires_reply),
         urgency: String(decision.urgency || "").trim().toLowerCase(),
-        importance: String(decision.importance || "").trim().toLowerCase(),
-        value: String(decision.value || "").trim().toLowerCase(),
         effort: String(decision.effort || "").trim().toLowerCase(),
-        confidence: String(decision.confidence || "").trim().toLowerCase(),
+        follow_up: Boolean(decision.follow_up),
+        convert_to_task: Boolean(decision.convert_to_task),
         reason: String(decision.reason || "").trim()
       }))
       .filter((decision) =>
         decision.uid &&
         DECISION_CATEGORIES.includes(decision.category) &&
         labelSet.has(decision.category) &&
-        DECISION_ACTIONS.includes(decision.action) &&
-        DECISION_LEVELS.includes(decision.urgency) &&
-        DECISION_LEVELS.includes(decision.importance) &&
-        DECISION_LEVELS.includes(decision.value) &&
-        DECISION_LEVELS.includes(decision.effort) &&
-        DECISION_LEVELS.includes(decision.confidence)
+        DECISION_URGENCY_LEVELS.includes(decision.urgency) &&
+        DECISION_EFFORT_LEVELS.includes(decision.effort)
       );
 
     res.json({
