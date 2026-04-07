@@ -1358,16 +1358,14 @@ async function genBrief(options = {}) {
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const total = S.emails.length;
-  const unread = S.emails.filter((e) => e.unread).length;
-  const starred = S.emails.filter((e) => e.star).length;
+  const needsReply = S.emails.filter((e) => e.aiRequiresReply === true).length;
+  const highUrgency = S.emails.filter((e) => e.aiUrgency === "high").length;
+  const deepWork = S.emails.filter((e) => e.aiEffort === "deep").length;
+  const followUps = S.emails.filter((e) => e.aiFollowUp === true).length;
+  const taskCount = S.emails.filter((e) => e.aiConvertToTask === true).length;
   const spam = S.emails.filter((e) => e.spam).length;
-  const cats = {};
-  S.emails.forEach((e) => {
-    const key = S.aiLabels.length ? (e.aiCategory || e.aiLabel || "Unassigned") : e.cat;
-    cats[key] = (cats[key] || 0) + 1;
-  });
 
-  let aiText = `You have ${unread} unread emails, ${starred} starred items, and ${spam} suspicious messages. Start with high-urgency action emails and anything that needs a reply.`;
+  let aiText = `You have ${needsReply} emails that likely need a reply, ${highUrgency} high-urgency items, ${deepWork} deeper reads, and ${taskCount} messages that should probably become tracked work.`;
 
   if (S.cfg.aiKey || S.cfg.okey) {
     try {
@@ -1385,7 +1383,16 @@ async function genBrief(options = {}) {
 
   progress(100);
 
-  const imp = S.emails.filter((e) => e.star).slice(0, 4);
+  const replyNowList = S.emails
+    .filter((e) => e.aiRequiresReply === true)
+    .sort((a, b) => {
+      const urgencyRank = { high: 0, medium: 1, low: 2 };
+      return (urgencyRank[a.aiUrgency] ?? 3) - (urgencyRank[b.aiUrgency] ?? 3);
+    })
+    .slice(0, 4);
+  const deepWorkList = S.emails
+    .filter((e) => e.aiEffort === "deep" || e.aiConvertToTask === true)
+    .slice(0, 4);
   const spamList = S.emails.filter((e) => e.spam);
 
   body.innerHTML = `
@@ -1395,9 +1402,9 @@ async function genBrief(options = {}) {
     </div>
     <div class="stats-row">
       <div class="stat-box"><div class="stat-n">${total}</div><div class="stat-l">Total</div></div>
-      <div class="stat-box"><div class="stat-n" style="color:var(--accent)">${unread}</div><div class="stat-l">Unread</div></div>
-      <div class="stat-box"><div class="stat-n" style="color:var(--yellow)">${starred}</div><div class="stat-l">Starred</div></div>
-      <div class="stat-box"><div class="stat-n" style="color:var(--muted)">${spam}</div><div class="stat-l">Spam</div></div>
+      <div class="stat-box"><div class="stat-n" style="color:var(--accent)">${needsReply}</div><div class="stat-l">Needs Reply</div></div>
+      <div class="stat-box"><div class="stat-n" style="color:var(--yellow)">${highUrgency}</div><div class="stat-l">High Urgency</div></div>
+      <div class="stat-box"><div class="stat-n" style="color:var(--green)">${taskCount}</div><div class="stat-l">Convert To Task</div></div>
     </div>
     <div class="ai-brief">
       <div class="ai-brief-lbl">AI Summary</div>
@@ -1406,9 +1413,15 @@ async function genBrief(options = {}) {
     <div class="brief-cols">
       <div>
         <div class="bcard">
-          <div class="bcard-h">⭐ Starred — needs attention</div>
+          <div class="bcard-h">↩ Needs reply first</div>
           <div class="bcard-b">
-            ${imp.length ? imp.map((e) => `<div class="brow"><div class="brow-from">${x(e.addr)}</div><div class="brow-subj">${x(e.subj)}</div><div class="brow-sum">${x((e.prev || "").substring(0, 120))}</div></div>`).join("") : '<div class="brow" style="color:var(--muted)">No starred emails</div>'}
+            ${replyNowList.length ? replyNowList.map((e) => `<div class="brow"><div class="brow-from">${x(e.addr)}</div><div class="brow-subj">${x(e.subj)}</div><div class="brow-sum">Urgency: ${x(e.aiUrgency || "medium")} · Effort: ${x(e.aiEffort || "quick")} · ${x((e.aiReason || e.prev || "").substring(0, 120))}</div></div>`).join("") : '<div class="brow" style="color:var(--muted)">No reply-needed emails yet</div>'}
+          </div>
+        </div>
+        <div class="bcard" style="margin-top:16px">
+          <div class="bcard-h">🧠 Deep work / follow-up</div>
+          <div class="bcard-b">
+            ${deepWorkList.length ? deepWorkList.map((e) => `<div class="brow"><div class="brow-from">${x(e.addr)}</div><div class="brow-subj">${x(e.subj)}</div><div class="brow-sum">Follow-up: ${e.aiFollowUp === true ? "Yes" : "No"} · Convert to task: ${e.aiConvertToTask === true ? "Yes" : "No"} · ${x((e.aiReason || e.prev || "").substring(0, 120))}</div></div>`).join("") : '<div class="brow" style="color:var(--muted)">No deep-work emails yet</div>'}
           </div>
         </div>
         ${spam > 0 ? `
@@ -1422,9 +1435,14 @@ async function genBrief(options = {}) {
       </div>
       <div>
         <div class="bcard">
-          <div class="bcard-h">📂 ${S.aiLabels.length ? "By AI category" : "By category"}</div>
+          <div class="bcard-h">Decision breakdown</div>
           <div class="bcard-b">
-            ${Object.entries(cats).map(([c, n]) => `<div class="crow"><span class="cat-dot" style="background:${catColor(c)}"></span>${x(c)}<span class="crow-n">${n}</span></div>`).join("")}
+            <div class="crow"><span class="cat-dot" style="background:${catColor("action")}"></span>Action<span class="crow-n">${S.emails.filter((e) => (e.aiCategory || e.aiLabel) === "action").length}</span></div>
+            <div class="crow"><span class="cat-dot" style="background:${catColor("info")}"></span>Info<span class="crow-n">${S.emails.filter((e) => (e.aiCategory || e.aiLabel) === "info").length}</span></div>
+            <div class="crow"><span class="cat-dot" style="background:${catColor("promo")}"></span>Promo<span class="crow-n">${S.emails.filter((e) => (e.aiCategory || e.aiLabel) === "promo").length}</span></div>
+            <div class="crow"><span class="cat-dot" style="background:#4f8ef7"></span>Follow-up<span class="crow-n">${followUps}</span></div>
+            <div class="crow"><span class="cat-dot" style="background:#3ecf8e"></span>Deep work<span class="crow-n">${deepWork}</span></div>
+            <div class="crow"><span class="cat-dot" style="background:#f75f5f"></span>Spam<span class="crow-n">${spam}</span></div>
           </div>
         </div>
       </div>
@@ -1438,7 +1456,7 @@ async function genBrief(options = {}) {
 function catColor(c) {
   const aiMatch = S.aiLabels.find((label) => label.name === c);
   if (aiMatch?.color) return aiMatch.color;
-  return { Work: "#3ecf8e", Finance: "#f7c948", Social: "#4f8ef7", Newsletters: "#7c5cfc", Travel: "#00c8dc", Spam: "#f75f5f", Unassigned: "#888888" }[c] || "#888";
+  return { action: "#4f8ef7", info: "#3ecf8e", promo: "#f7c948", Work: "#3ecf8e", Finance: "#f7c948", Social: "#4f8ef7", Newsletters: "#7c5cfc", Travel: "#00c8dc", Spam: "#f75f5f", Unassigned: "#888888" }[c] || "#888";
 }
 
 async function delSpam() {
