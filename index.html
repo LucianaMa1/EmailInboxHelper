@@ -66,10 +66,10 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
 
 /* SETUP */
 .setup-body { flex:1; overflow-y:auto; padding:32px; display:flex; justify-content:center; }
-.setup-inner { width:100%; max-width:1360px; }
+.setup-inner { width:100%; max-width:1120px; }
 .setup-title { font-size:22px; font-weight:600; margin-bottom:6px; }
 .setup-sub { font-size:13px; color:var(--muted); margin-bottom:28px; line-height:1.6; }
-.setup-steps { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; align-items:start; margin-bottom:16px; }
+.setup-steps { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; align-items:start; margin-bottom:16px; }
 
 .step-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:16px; overflow:hidden; }
 .setup-steps .step-card { margin-bottom:0; height:100%; display:flex; flex-direction:column; }
@@ -299,7 +299,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
       <div class="setup-body">
         <div class="setup-inner">
           <h1 class="setup-title">Luci's Inbox Helper</h1>
-          <p class="setup-sub">Set up your email, connect your AI model, and tell Luci what actually matters in your inbox. Credentials stay in your browser and are only sent to your mail provider and chosen AI provider when you explicitly use them.</p>
+          <p class="setup-sub">Connect your email, connect your AI model, and let Luci turn each message into a clear decision. Credentials stay in your browser and are only sent to your mail provider and chosen AI provider when you explicitly use them.</p>
 
           <div class="setup-steps">
             <div class="step-card">
@@ -373,7 +373,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
             <div class="step-card">
               <div class="step-head"><span class="step-num">2</span> Connect your AI API</div>
               <div class="step-body">
-                <p class="step-intro">Connect the model you want Luci to use for strategy generation, decisioning, summaries, and the Daily Brief.</p>
+                <p class="step-intro">Connect the model you want Luci to use for summaries, reply drafts, and the Daily Brief.</p>
                 <div class="step-grid">
                   <div class="step-controls">
                     <div class="frow">
@@ -395,7 +395,7 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
                     <div class="fgroup">
                       <label>API Key</label>
                       <input type="password" id="aiKey" placeholder="Paste provider API key">
-                      <p class="hint" id="aiHint">Used for summaries, strategy generation, and inbox analysis. Stored locally only in this browser.</p>
+                      <p class="hint" id="aiHint">Used for summaries, reply drafts, and the Daily Brief. Stored locally only in this browser.</p>
                     </div>
                   </div>
                   <div class="step-panel">
@@ -412,40 +412,6 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); heig
               </div>
             </div>
 
-            <div class="step-card">
-              <div class="step-head"><span class="step-num">3</span> Tell Luci what you care about</div>
-              <div class="step-body">
-                <p class="step-intro">Describe the decisions you want Luci to make. This becomes the operating strategy Luci uses when it later analyzes the inbox.</p>
-                <div class="step-grid">
-                  <div class="step-controls">
-                    <div class="fgroup">
-                      <label>What matters in your emails?</label>
-                      <textarea id="aiPrompt" placeholder="Example: Separate real work from sales outreach. Create categories for urgent replies, FYI, newsletters worth learning from, notifications, and low-priority marketing. Never put cold outreach into work."></textarea>
-                      <p class="hint">Tell Luci how to think about your inbox. This instruction becomes the strategy used to generate categories and classify mail.</p>
-                      <div class="prompt-examples">
-                        <button type="button" class="prompt-chip" onclick="usePromptExample('Separate emails into To Do, To Follow Up, FYI, Notifications, Learn Newsletters, and Marketing. Never classify cold sales outreach or SEO pitches as work.')">Exec assistant</button>
-                        <button type="button" class="prompt-chip" onclick="usePromptExample('Keep client work, invoices, urgent replies, and product alerts separate from low-priority outreach. Put interesting newsletters into Learn Newsletter instead of Marketing.')">Founder mode</button>
-                        <button type="button" class="prompt-chip" onclick="usePromptExample('Organize mail into action needed, follow-up, FYI, school and family notifications, newsletters worth learning from, and promotional noise.')">Personal ops</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="step-panel">
-                    <div class="step-panel-label">What happens next</div>
-                    <div class="step-panel-title">Generate Luci's strategy</div>
-                    <div class="step-panel-text">Apply your prompt first to draft the decision system and categories. Then use Start Analyze in Inbox to classify actual messages.</div>
-                    <div class="strategy-card" id="strategyPreview" style="display:none">
-                      <div class="strategy-title">Generated Strategy</div>
-                      <div class="strategy-text" id="strategyText"></div>
-                      <div class="strategy-list" id="strategyList"></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="step-footer">
-                  <button class="btn btn-primary btn-sm" onclick="applyStrategy()" id="btnApplyStrategy">Apply</button>
-                  <div class="step-status" id="strategyStatus">No strategy generated yet.</div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="step-card">
@@ -567,20 +533,24 @@ const AI_HINTS = {
   qwen: 'Use a Qwen-compatible DashScope API key from Alibaba Cloud DashScope.'
 };
 
+const DECISION_LABELS = [
+  { name: "action", description: "Requires decision, action, coordination, approval, or execution.", color: "#4f8ef7" },
+  { name: "info", description: "Informational only. Useful to read, but no clear action is required.", color: "#3ecf8e" },
+  { name: "promo", description: "Promotional, marketing, newsletter-like, or low-value bulk communication.", color: "#f7c948" }
+];
+
 const S = {
   connected: false,
   emails: [],
   view: [],
   sel: new Set(),
+  snoozed: new Set(),
   filter: null,
   openId: null,
   cfg: {},
   search: "",
   aiLabels: [],
-  aiSummary: "",
-  aiStrategy: "",
-  aiProcessingSummary: "",
-  aiSummarySections: []
+  aiSummary: ""
 };
 
 async function api(path, payload) {
@@ -636,7 +606,6 @@ function hydrateForm() {
   if (S.cfg.folder) document.getElementById("mailFolder").value = S.cfg.folder;
   if (S.cfg.imapHost) document.getElementById("imapHost").value = S.cfg.imapHost;
   if (S.cfg.imapPort) document.getElementById("imapPort").value = S.cfg.imapPort;
-  if (S.cfg.aiPrompt) document.getElementById("aiPrompt").value = S.cfg.aiPrompt;
   updateAIHint(S.cfg.aiProvider || "openai");
 
   if (S.cfg.prov) {
@@ -662,8 +631,7 @@ function readCfgFromForm() {
     count: document.getElementById("fetchCount").value,
     folder: document.getElementById("mailFolder").value,
     imapHost: document.getElementById("imapHost").value.trim(),
-    imapPort: document.getElementById("imapPort").value.trim(),
-    aiPrompt: document.getElementById("aiPrompt").value.trim()
+    imapPort: document.getElementById("imapPort").value.trim()
   };
 }
 
@@ -720,14 +688,6 @@ function updateStepStatuses() {
     setStepStatus("aiStatus", `Ready to test ${(cfg.aiProvider || "openai").replace(/^./, (m) => m.toUpperCase())} / ${cfg.aiModel || "model"}.`);
   } else {
     setStepStatus("aiStatus", "Model not validated yet.");
-  }
-
-  if (S.aiStrategy) {
-    setStepStatus("strategyStatus", S.connected ? "Strategy ready. Start Analyze can now classify the synced inbox." : "Strategy ready. Connect your inbox next to run analysis.", "ok");
-  } else if (cfg.aiPrompt) {
-    setStepStatus("strategyStatus", "Prompt saved locally. Apply to generate Luci's decision strategy.");
-  } else {
-    setStepStatus("strategyStatus", "No strategy generated yet.");
   }
 }
 
@@ -815,10 +775,6 @@ function setFilter(f) {
   const m = { starred: "Starred", unread: "Unread", Work: "Work", Finance: "Finance", Social: "Social", Newsletters: "Newsletters", Travel: "Travel", Spam: "Spam" };
   document.getElementById("inboxTitle").textContent = m[f] || (String(f || "").startsWith("label:") ? String(f).slice(6) : f);
   renderList();
-}
-
-function usePromptExample(value) {
-  document.getElementById("aiPrompt").value = value;
 }
 
 function buildEmailSnapshot(email, mode = "strategy") {
@@ -943,7 +899,6 @@ async function saveConn(options = {}) {
     document.getElementById("statusLabel").textContent = `${cfg.email} · ${S.emails.length} emails`;
     updateCounts();
     renderCategories();
-    renderStrategyPreview();
     renderList();
     renderDetail(null);
     updateStepStatuses();
@@ -1014,7 +969,6 @@ async function syncEmails() {
     }
     updateCounts();
     renderCategories();
-    renderStrategyPreview();
     renderList();
     updateStepStatuses();
     progress(100);
@@ -1026,7 +980,7 @@ async function syncEmails() {
 }
 
 function getFilteredEmails() {
-  let emails = [...S.emails];
+  let emails = [...S.emails].filter((e) => !e.archived && !(e.snoozedUntil && new Date(e.snoozedUntil) > new Date()));
   if (S.filter) {
     if (S.filter === "starred") emails = emails.filter((e) => e.star);
     else if (S.filter === "unread") emails = emails.filter((e) => e.unread);
@@ -1114,7 +1068,20 @@ function renderDetail(email) {
       ${email.star ? '<span class="etag etag-star" style="font-size:10px">★ starred</span>' : ""}
     </div>
     <div class="d-body">${x(email.body || email.prev || "(No body available)")}</div>
-    ${email.aiReason ? `<div class="d-ai" style="display:block;margin-bottom:16px"><div class="d-ai-lbl">AI Decision</div><div class="d-ai-txt">Needs reply: ${typeof email.aiRequiresReply === "boolean" ? (email.aiRequiresReply ? "Yes" : "No") : "Unknown"} · Urgency: ${x(email.aiUrgency || "medium")} · Effort: ${x(email.aiEffort || "quick")} · Follow-up: ${typeof email.aiFollowUp === "boolean" ? (email.aiFollowUp ? "Yes" : "No") : "Unknown"} · Convert to task: ${typeof email.aiConvertToTask === "boolean" ? (email.aiConvertToTask ? "Yes" : "No") : "Unknown"}<br><br>${x(email.aiReason)}</div></div>` : ""}
+    ${email.aiReason ? `<div class="d-ai" style="display:block;margin-bottom:16px"><div class="d-ai-lbl">Decision Summary</div><div class="d-ai-txt">Category: ${x(email.aiCategory || email.aiLabel || email.cat || "info")} · Needs reply: ${typeof email.aiRequiresReply === "boolean" ? (email.aiRequiresReply ? "Yes" : "No") : "Unknown"} · Urgency: ${x(email.aiUrgency || "medium")} · Effort: ${x(email.aiEffort || "quick")} · Follow-up: ${typeof email.aiFollowUp === "boolean" ? (email.aiFollowUp ? "Yes" : "No") : "Unknown"} · Convert to task: ${typeof email.aiConvertToTask === "boolean" ? (email.aiConvertToTask ? "Yes" : "No") : "Unknown"}<br><br>${x(email.aiReason)}</div></div>` : ""}
+    <div class="d-ai" style="display:block;margin-bottom:16px">
+      <div class="d-ai-lbl">Recommended Actions</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="draftReply(${email.id})">Draft reply</button>
+        <button class="btn btn-sm" onclick="createTask(${email.id})">Create task</button>
+        <button class="btn btn-sm" onclick="archiveEmail(${email.id})">Archive</button>
+        <button class="btn btn-sm" onclick="snoozeEmail(${email.id})">Snooze</button>
+      </div>
+      ${email.taskDraft ? `<div class="strategy-card" style="display:block;margin-top:12px"><div class="strategy-title">Task Draft</div><div class="strategy-text">${x(email.taskDraft)}</div></div>` : ""}
+      ${email.replyDraft ? `<div class="strategy-card" style="display:block;margin-top:12px"><div class="strategy-title">Reply Draft</div><div class="strategy-text">${x(email.replyDraft)}</div></div>` : ""}
+      ${email.archived ? `<div class="hint" style="margin-top:10px;color:var(--green)">Archived in app view.</div>` : ""}
+      ${email.snoozedUntil ? `<div class="hint" style="margin-top:10px;color:var(--accent)">Snoozed until ${x(new Date(email.snoozedUntil).toLocaleString())}.</div>` : ""}
+    </div>
     <div class="d-ai" id="aiBox" style="display:none">
       <div class="d-ai-lbl">AI Summary</div>
       <div class="d-ai-txt" id="aiTxt">Analyzing…</div>
@@ -1151,77 +1118,86 @@ async function summarize(id) {
   }
 }
 
-async function applyStrategy() {
-  let cfg;
-  try {
-    cfg = requireAICfg();
-  } catch (error) {
-    return toast("⚠", error.message);
-  }
-
-  if (!cfg.aiPrompt) return toast("⚠", "Write your inbox instruction first");
-
-  document.getElementById("btnApplyStrategy").disabled = true;
-  toast("✦", "Generating strategy from your instruction…");
-  progress(45);
-  setStepStatus("strategyStatus", "Generating strategy from your prompt…");
+async function draftReply(id) {
+  const email = S.emails.find((item) => item.id === id);
+  if (!email) return;
+  if (!hasAIConfig(persistCfg())) return toast("⚠", "Connect your AI model first");
 
   try {
-    const data = await api("/api/ai/strategy", {
-      provider: cfg.aiProvider,
-      apiKey: cfg.aiKey,
-      model: cfg.aiModel,
-      prompt: cfg.aiPrompt,
-      emails: buildEmailPayload("strategy")
+    const data = await api("/api/ai/draft-reply", {
+      provider: S.cfg.aiProvider || "openai",
+      apiKey: S.cfg.aiKey || S.cfg.okey,
+      model: S.cfg.aiModel || S.cfg.model,
+      email,
+      decision: {
+        category: email.aiCategory || email.aiLabel || email.cat,
+        requires_reply: email.aiRequiresReply,
+        urgency: email.aiUrgency,
+        effort: email.aiEffort,
+        follow_up: email.aiFollowUp,
+        convert_to_task: email.aiConvertToTask
+      }
     });
-
-    S.aiLabels = data.labels || [];
-    S.aiStrategy = data.strategy || "";
-    S.aiProcessingSummary = data.processingSummary || "";
-    S.aiSummarySections = data.summarySections || [];
-    renderCategories();
-    renderStrategyPreview();
-    updateStepStatuses();
-    progress(100);
-    showBanner(data.processingSummary || "Strategy generated.");
-    toast("✦", S.connected ? "Strategy ready" : "Strategy ready. Connect and sync to analyze emails.");
+    email.replyDraft = data.draft || "";
+    renderDetail(email);
+    toast("✦", "Reply draft ready");
   } catch (error) {
-    setStepStatus("strategyStatus", error.message, "err");
-    progress(100);
     toast("✗", error.message);
-  } finally {
-    document.getElementById("btnApplyStrategy").disabled = false;
   }
+}
+
+function createTask(id) {
+  const email = S.emails.find((item) => item.id === id);
+  if (!email) return;
+  email.taskDraft = `${email.subj}\nOwner: Me\nUrgency: ${email.aiUrgency || "medium"}\nEffort: ${email.aiEffort || "quick"}\nWhy: ${email.aiReason || "Follow up on this email."}`;
+  email.aiConvertToTask = true;
+  renderDetail(email);
+  renderList();
+  genBrief({ silent: true });
+  toast("✓", "Task draft created");
+}
+
+function archiveEmail(id) {
+  const email = S.emails.find((item) => item.id === id);
+  if (!email) return;
+  email.archived = true;
+  if (S.openId === id) {
+    S.openId = null;
+    renderDetail(null);
+  }
+  renderList();
+  genBrief({ silent: true });
+  toast("✓", "Archived in app view");
+}
+
+function snoozeEmail(id) {
+  const email = S.emails.find((item) => item.id === id);
+  if (!email) return;
+  const until = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  email.snoozedUntil = until.toISOString();
+  if (S.openId === id) {
+    S.openId = null;
+    renderDetail(null);
+  }
+  renderList();
+  genBrief({ silent: true });
+  toast("⏰", "Snoozed for 24 hours");
 }
 
 async function runAI() {
   if (!S.connected) return toast("⚠", "Connect your mailbox first");
 
-  let cfg;
-  try {
-    cfg = requireAICfg();
-  } catch (error) {
-    return toast("⚠", error.message);
-  }
-
-  if (!S.aiStrategy || !S.aiLabels.length) return toast("⚠", "Click Apply first to generate a strategy");
-
-  toast("✦", "Analyzing emails with your approved strategy…");
+  toast("✦", "Generating decision summaries…");
   progress(45);
 
   try {
     const data = await api("/api/ai/organize", {
-      provider: cfg.aiProvider,
-      apiKey: cfg.aiKey,
-      model: cfg.aiModel,
-      prompt: cfg.aiPrompt,
-      strategy: S.aiStrategy,
-      labels: S.aiLabels,
       emails: buildEmailPayload("organize")
     });
 
     const decisions = new Map((data.decisions || []).map((item) => [item.uid, item]));
     S.aiSummary = data.summary || "";
+    S.aiLabels = data.labels || DECISION_LABELS;
     S.emails = S.emails.map((email) => {
       const decision = decisions.get(email.uid);
       if (!decision) return { ...email, aiCategory: "", aiLabel: "", aiUrgency: "", aiEffort: "", aiRequiresReply: "", aiFollowUp: "", aiConvertToTask: "", aiReason: "", legacyCat: email.legacyCat || email.cat };
@@ -1247,8 +1223,8 @@ async function runAI() {
       renderDetail(S.emails.find((email) => email.id === S.openId) || null);
     }
     progress(100);
-    showBanner(data.summary || S.aiProcessingSummary || "Analysis complete.");
-    toast("✦", "Analysis complete");
+    showBanner(data.summary || "Analysis complete.");
+    toast("✦", "Decision refresh complete");
   } catch (error) {
     progress(100);
     toast("✗", error.message);
@@ -1477,13 +1453,13 @@ async function delSpam() {
 
 async function createMailboxLabels() {
   if (!S.connected) return toast("⚠", "Connect your mailbox first");
-  if (!S.aiLabels.length) return toast("⚠", "Run Start Analyze first so categories exist");
+  const labels = (S.aiLabels.length ? S.aiLabels : DECISION_LABELS).map((label) => label.name);
 
   try {
     const cfg = requireCfg();
     const data = await api("/api/mailboxes/create-labels", {
       cfg,
-      labels: S.aiLabels.map((label) => label.name)
+      labels
     });
     const createdCount = (data.created || []).length;
     toast("✓", createdCount ? `Created ${createdCount} mailbox label(s)` : "Mailbox labels already existed");
@@ -1525,7 +1501,6 @@ function renderCategories() {
             color: ["#4f8ef7", "#3ecf8e", "#f7c948", "#f75f5f", "#00c8dc", "#7c5cfc"][index % 6]
           })))
     : [];
-  const plannedLabelCount = S.aiLabels.length;
 
   if (derivedLabels.length) {
     title.textContent = "AI Categories";
@@ -1542,12 +1517,6 @@ function renderCategories() {
         </div>
       `;
     }).join("");
-    return;
-  }
-
-  if (plannedLabelCount) {
-    title.textContent = "Categories";
-    root.innerHTML = `<div class="label-desc">Strategy generated. Run Start Analyze to assign emails into these categories.</div>`;
     return;
   }
 
@@ -1577,29 +1546,6 @@ function renderCategories() {
       </div>
     `;
   }).join("");
-}
-
-function renderStrategyPreview() {
-  const card = document.getElementById("strategyPreview");
-  const text = document.getElementById("strategyText");
-  const list = document.getElementById("strategyList");
-  if (!card || !text || !list) return;
-
-  if (!S.aiStrategy) {
-    card.style.display = "none";
-    text.textContent = "";
-    list.innerHTML = "";
-    return;
-  }
-
-  card.style.display = "block";
-  text.textContent = S.aiStrategy;
-  const items = [
-    S.aiProcessingSummary,
-    ...S.aiLabels.map((label) => `Category: ${label.name} — ${label.description || "AI-generated grouping"}`),
-    ...S.aiSummarySections.filter((item) => !/^category\s*:/i.test(String(item || "").trim()))
-  ].filter(Boolean);
-  list.innerHTML = items.map((item) => `<div>${x(item)}</div>`).join("");
 }
 
 function x(s) {

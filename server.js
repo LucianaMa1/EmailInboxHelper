@@ -180,6 +180,94 @@ function sanitizeStrategySections(sections = []) {
     .slice(0, 4);
 }
 
+function classifyPresetDecision(email = {}) {
+  const from = String(email.from || "");
+  const subject = String(email.subj || email.subject || "");
+  const preview = String(email.prev || email.preview || "");
+  const body = String(email.body || email.bodySnippet || "");
+  const addr = String(email.addr || email.address || "");
+  const haystack = `${from} ${addr} ${subject} ${preview} ${body}`.toLowerCase();
+
+  const hasReplyExpectation = [
+    "please reply",
+    "let me know",
+    "can you",
+    "could you",
+    "would you",
+    "thoughts?",
+    "feedback",
+    "reply by",
+    "respond",
+    "confirm",
+    "approve",
+    "question",
+    "following up",
+    "follow up",
+    "next steps"
+  ].some((pattern) => haystack.includes(pattern)) || /\?$/.test(subject.trim());
+
+  const isNoReplySender = /(no-?reply|donotreply|notifications?@|updates?@|noreply@)/i.test(addr);
+  const promoSignals = [
+    "clearance", "% off", "percent off", "up to ", "sale", "deal", "shop now", "score now", "limited time",
+    "free shipping", "coupon", "promo code", "unsubscribe", "newsletter", "digest", "substack", "black friday",
+    "cyber monday", "dick's sporting goods", "dicks sporting goods", "doorbuster", "new arrivals", "shop today"
+  ].some((pattern) => haystack.includes(pattern));
+  const infoSignals = [
+    "receipt", "shipped", "delivered", "tracking", "statement", "summary", "notification", "reminder", "alert",
+    "security", "sign-in", "login", "invoice", "itinerary", "reservation", "calendar", "digest", "confirmed"
+  ].some((pattern) => haystack.includes(pattern));
+  const actionSignals = [
+    "action required", "approve", "review", "deadline", "due", "asap", "urgent", "interview", "meeting", "proposal",
+    "contract", "please", "respond", "reply", "decision needed", "coordination", "availability", "schedule"
+  ].some((pattern) => haystack.includes(pattern));
+  const highUrgencySignals = [
+    "urgent", "asap", "today", "by eod", "deadline", "expires", "action required", "immediately", "final reminder"
+  ].some((pattern) => haystack.includes(pattern));
+  const deepSignals = [
+    "proposal", "contract", "scope", "review", "deck", "spec", "plan", "analysis", "notes", "brief", "summary", "document", "attached"
+  ].some((pattern) => haystack.includes(pattern)) || body.length > 1600;
+
+  let category = "info";
+  if (promoSignals) {
+    category = "promo";
+  } else if (actionSignals || hasReplyExpectation) {
+    category = "action";
+  } else if (!isNoReplySender && /\b(re|fwd):/i.test(subject)) {
+    category = "action";
+  } else if (infoSignals) {
+    category = "info";
+  }
+
+  const requiresReply = category === "action" && hasReplyExpectation && !isNoReplySender;
+  const urgency = highUrgencySignals ? "high" : category === "action" ? "medium" : "low";
+  const effort = category === "action" && deepSignals ? "deep" : (category === "info" && deepSignals ? "deep" : "quick");
+  const followUp = category === "action" && [
+    "follow up", "following up", "check back", "next steps", "waiting on", "loop back", "keep posted", "reminder"
+  ].some((pattern) => haystack.includes(pattern));
+  const convertToTask = category === "action" && (effort === "deep" || followUp || urgency !== "low");
+
+  let reason = "Primarily informational with no strong action signal.";
+  if (category === "promo") {
+    reason = "Contains promotional or newsletter-like signals and does not look like priority work.";
+  } else if (category === "action") {
+    reason = requiresReply
+      ? "The sender appears to expect a response or action from you."
+      : "This message contains a clear action or coordination signal even if no reply is strictly required.";
+  } else if (infoSignals) {
+    reason = "Looks like a status update, receipt, alert, or notification that is useful to read but not urgent to act on.";
+  }
+
+  return {
+    category,
+    requires_reply: requiresReply,
+    urgency,
+    effort,
+    follow_up: followUp,
+    convert_to_task: convertToTask,
+    reason
+  };
+}
+
 function resolveAIConfig({ provider, apiKey, model }) {
   const resolved = AI_PROVIDERS[provider || "openai"] || AI_PROVIDERS.openai;
   if (!apiKey) {
@@ -488,6 +576,36 @@ app.post("/api/ai/summarize", async (req, res) => {
   }
 });
 
+app.post("/api/ai/draft-reply", async (req, res) => {
+  const { apiKey, model, provider, email, decision } = req.body || {};
+
+  try {
+    if (!apiKey) throw new Error("Missing OpenAI API key.");
+    if (!email) throw new Error("Missing email payload.");
+
+    const draft = await callAI({
+      provider,
+      apiKey,
+      model,
+      maxTokens: 400,
+      messages: [
+        {
+          role: "system",
+          content: "You are an executive assistant. Draft a concise, professional email reply. Return only the draft email body."
+        },
+        {
+          role: "user",
+          content: `Email:\nFrom: ${email.from} <${email.addr}>\nSubject: ${email.subj}\n\n${email.body || email.prev}\n\nDecision summary:\n${JSON.stringify(decision || {}, null, 2)}`
+        }
+      ]
+    });
+
+    res.json({ ok: true, draft: String(draft || "").trim() });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
 app.post("/api/ai/brief", async (req, res) => {
   const { apiKey, model, provider, emails } = req.body || {};
 
@@ -596,89 +714,34 @@ app.post("/api/ai/strategy", async (req, res) => {
 });
 
 app.post("/api/ai/organize", async (req, res) => {
-  const { apiKey, model, provider, emails, prompt, strategy, labels } = req.body || {};
+  const { emails } = req.body || {};
 
   try {
-    if (!apiKey) throw new Error("Missing OpenAI API key.");
     if (!Array.isArray(emails) || !emails.length) {
       throw new Error("No emails available for organization.");
     }
-
-    const usableLabels = Array.isArray(labels) ? labels : [];
-    if (!usableLabels.length) {
-      throw new Error("Generate a strategy first so labels exist.");
-    }
-
-    const payload = emails.slice(0, 80).map((email) => buildEmailContext(email, "organize"));
-
-    const content = await callAI({
-      provider,
-      apiKey,
-      model,
-      maxTokens: 1800,
-      messages: [
-        {
-          role: "system",
-          content: [
-            "You are an email decision engine inside a productivity product.",
-            "Your job is not to chat. Your job is to convert incoming emails into structured decisions.",
-            "Return strict JSON with this shape:",
-            "{",
-            '  "summary": "short paragraph",',
-            '  "decisions": [{"uid":123,"category":"enum","requires_reply":true,"urgency":"enum","effort":"enum","follow_up":true,"convert_to_task":true,"reason":"short sentence"}]',
-            "}",
-            "Rules:",
-            "- Evaluate each email independently and make one decision per email.",
-            "- Be precise, concise, and decisive.",
-            "- Return valid JSON only.",
-            "- Use only the allowed enum values.",
-            "- Prefer practical executive-assistant judgment over literal keyword matching.",
-            "- Focus on what the user should do, not on summarizing for its own sake.",
-            `- category must be one of: ${DECISION_CATEGORIES.join(", ")}.`,
-            `- urgency must be one of: ${DECISION_URGENCY_LEVELS.join(", ")}.`,
-            `- effort must be one of: ${DECISION_EFFORT_LEVELS.join(", ")}.`,
-            "- requires_reply must be true if the sender reasonably expects a response, otherwise false.",
-            "- follow_up must be true if the email implies continued tracking, checking back, waiting, or future action.",
-            "- convert_to_task must be true if the email should become tracked work rather than just reference or reading.",
-            '- If an email needs action but not necessarily a reply, category can still be "action".',
-            '- Promotional emails should usually be category "promo", requires_reply false, and convert_to_task false unless there is a clear reason otherwise.',
-            "- Never invent facts not supported by the email content or provided context.",
-            "- Do not anchor on legacy heuristic categories; classify from the actual sender, subject, preview, and body snippet.",
-            '- Cold sales outreach, vendor prospecting, SEO offers, backlink requests, agency pitches, retail deals, and generic B2B marketing should usually be "promo".'
-          ].join("\n")
-        },
-        {
-          role: "user",
-          content: `User instructions:\n${String(prompt || "").trim()}\n\nApproved strategy:\n${String(strategy || "").trim()}\n\nRelevant categories:\n${JSON.stringify(usableLabels, null, 2)}\n\nEmails:\n${JSON.stringify(payload, null, 2)}`
-        }
-      ]
-    });
-
-    const parsed = JSON.parse(extractJsonBlock(content));
-    const labelSet = new Set(usableLabels.map((label) => String(label.name || "").trim().toLowerCase()));
-    const decisions = Array.isArray(parsed.decisions) ? parsed.decisions : [];
-    const safeDecisions = decisions
-      .map((decision) => ({
-        uid: Number(decision.uid),
-        category: String(decision.category || "").trim().toLowerCase(),
-        requires_reply: Boolean(decision.requires_reply),
-        urgency: String(decision.urgency || "").trim().toLowerCase(),
-        effort: String(decision.effort || "").trim().toLowerCase(),
-        follow_up: Boolean(decision.follow_up),
-        convert_to_task: Boolean(decision.convert_to_task),
-        reason: String(decision.reason || "").trim()
+    const payload = emails.slice(0, 120);
+    const safeDecisions = payload
+      .map((email) => ({
+        uid: Number(email.uid),
+        ...classifyPresetDecision(email)
       }))
       .filter((decision) =>
         decision.uid &&
         DECISION_CATEGORIES.includes(decision.category) &&
-        labelSet.has(decision.category) &&
         DECISION_URGENCY_LEVELS.includes(decision.urgency) &&
         DECISION_EFFORT_LEVELS.includes(decision.effort)
       );
 
+    const needsReplyCount = safeDecisions.filter((decision) => decision.requires_reply).length;
+    const highUrgencyCount = safeDecisions.filter((decision) => decision.urgency === "high").length;
+    const taskCount = safeDecisions.filter((decision) => decision.convert_to_task).length;
+    const summary = `${needsReplyCount} emails likely need a reply, ${highUrgencyCount} are high urgency, and ${taskCount} should probably become tracked tasks.`;
+
     res.json({
       ok: true,
-      summary: String(parsed.summary || "").trim(),
+      summary,
+      labels: getDefaultDecisionLabels(),
       decisions: safeDecisions
     });
   } catch (error) {
