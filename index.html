@@ -4,554 +4,1118 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Luci's Inbox Helper</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Nunito:wght@300;400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
 :root {
-  --bg: #0a0a0f;
-  --surface: #111118;
-  --surface2: #1a1a24;
-  --border: rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.12);
-  --text: #e8e8f0;
-  --muted: #6b6b80;
-  --accent: #4f8ef7;
-  --green: #3ecf8e;
-  --red: #f75f5f;
-  --yellow: #f7c948;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans', sans-serif;
+  --bg:        #f7f4ef;
+  --bg2:       #f0ece4;
+  --surface:   #faf8f5;
+  --surface2:  #f3efe8;
+  --surface3:  #ebe6dc;
+  --border:    rgba(160,145,120,0.18);
+  --border2:   rgba(160,145,120,0.30);
+  --text:      #3d3530;
+  --text2:     #7a6e64;
+  --text3:     #a89e93;
+  --sage:      #7a9e87;
+  --sage-dim:  rgba(122,158,135,0.12);
+  --sage-b:    rgba(122,158,135,0.28);
+  --rose:      #c47e7e;
+  --rose-dim:  rgba(196,126,126,0.12);
+  --amber:     #c49b5a;
+  --amber-dim: rgba(196,155,90,0.13);
+  --lavender:  #9a8fbf;
+  --lav-dim:   rgba(154,143,191,0.13);
+  --blue:      #6a8fad;
+  --blue-dim:  rgba(106,143,173,0.12);
+  --font-s:    "Lora", Georgia, serif;
+  --font-b:    "Nunito", system-ui, sans-serif;
+  --font-m:    "Fira Code", monospace;
+  --r:         10px;
+  --r-sm:      6px;
+  --shadow:    0 16px 48px rgba(84, 66, 45, 0.08);
 }
 
-body { font-family: var(--sans); background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-
-.topbar { display:flex; align-items:center; padding:0 20px; height:52px; border-bottom:1px solid var(--border); gap:16px; flex-shrink:0; background:var(--surface); }
-.logo { font-family:var(--mono); font-size:15px; font-weight:600; letter-spacing:-0.5px; }
-.logo-dot { color:var(--accent); }
-.topbar-sep { flex:1; }
-.status-pill { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; color:var(--muted); padding:4px 10px; border:1px solid var(--border); border-radius:20px; }
-.status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); }
-.status-dot.on { background:var(--green); box-shadow:0 0 6px var(--green); }
-
-.layout { display:flex; flex:1; overflow:hidden; }
-
-.sidebar { width:220px; flex-shrink:0; border-right:1px solid var(--border); display:flex; flex-direction:column; background:var(--surface); overflow-y:auto; }
-.nav-section { padding:16px 12px 8px; }
-.nav-label { font-family:var(--mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); padding:0 8px; margin-bottom:6px; display:block; }
-.nav-item { display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:6px; cursor:pointer; font-size:13px; color:var(--muted); transition:all .15s; border:1px solid transparent; margin-bottom:2px; }
-.nav-item:hover { color:var(--text); background:var(--surface2); }
-.nav-item.active { color:var(--text); background:var(--surface2); border-color:var(--border); }
-.nav-icon { width:16px; text-align:center; font-size:13px; }
-.nav-name { flex:1; }
-.nav-count { font-family:var(--mono); font-size:10px; color:var(--muted); background:rgba(255,255,255,0.05); padding:1px 5px; border-radius:3px; }
-.cat-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-.nav-divider { height:1px; background:var(--border); margin:8px 12px; }
-
-.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-.panel { display:none; flex:1; overflow:hidden; flex-direction:column; }
-.panel.active { display:flex; }
-
-.panel-header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; flex-shrink:0; }
-.panel-title { font-size:14px; font-weight:600; flex:1; }
-
-.btn { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:6px; border:1px solid var(--border2); background:var(--surface2); font-family:var(--sans); font-size:12px; font-weight:500; cursor:pointer; color:var(--text); transition:all .15s; }
-.btn:hover { background:rgba(255,255,255,0.08); }
-.btn:disabled { opacity:.4; cursor:not-allowed; }
-.btn-primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-.btn-primary:hover { background:#6a9ef9; }
-.btn-danger { background:transparent; border-color:rgba(247,95,95,.4); color:var(--red); }
-.btn-danger:hover { background:rgba(247,95,95,.1); }
-.btn-sm { padding:5px 10px; font-size:11px; }
-
-/* SETUP */
-.setup-body { flex:1; overflow-y:auto; padding:32px; display:flex; justify-content:center; }
-.setup-inner { width:100%; max-width:1120px; }
-.setup-title { font-size:22px; font-weight:600; margin-bottom:6px; }
-.setup-sub { font-size:13px; color:var(--muted); margin-bottom:28px; line-height:1.6; }
-.setup-steps { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; align-items:start; margin-bottom:16px; }
-
-.step-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:16px; overflow:hidden; }
-.setup-steps .step-card { margin-bottom:0; height:100%; display:flex; flex-direction:column; }
-.step-head { padding:14px 18px; border-bottom:1px solid var(--border); font-size:13px; font-weight:600; display:flex; align-items:center; gap:10px; background:var(--surface2); }
-.step-num { width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--mono); }
-.step-body { padding:18px; }
-.setup-steps .step-body { flex:1; display:flex; flex-direction:column; }
-.step-intro { font-size:13px; line-height:1.7; color:var(--muted); margin-bottom:16px; }
-.step-grid { display:grid; grid-template-columns:1fr; gap:12px; }
-.step-controls { min-width:0; }
-.step-panel { min-width:0; padding:14px 16px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.02); }
-.step-panel-label { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
-.step-panel-title { font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text); }
-.step-panel-text { font-size:12px; line-height:1.7; color:var(--muted); }
-.step-footer { display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-top:auto; padding-top:16px; }
-.step-status { min-height:18px; font-family:var(--mono); font-size:11px; color:var(--muted); }
-.step-status.ok { color:var(--green); }
-.step-status.warn { color:#f7d97c; }
-.step-status.err { color:var(--red); }
-
-.provider-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:4px; }
-.provider-tile { padding:12px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); cursor:pointer; text-align:center; transition:all .15s; font-size:12px; color:var(--muted); }
-.provider-tile:hover { border-color:var(--border2); color:var(--text); }
-.provider-tile.sel { border-color:var(--accent); background:rgba(79,142,247,.08); color:var(--accent); }
-.provider-tile .picon { font-size:20px; display:block; margin-bottom:4px; }
-
-.fgroup { margin-bottom:14px; }
-.fgroup:last-child { margin-bottom:0; }
-.fgroup label { display:block; font-family:var(--mono); font-size:10px; letter-spacing:.8px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
-.fgroup input, .fgroup select { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:6px; font-family:var(--mono); font-size:12px; background:var(--bg); color:var(--text); outline:none; transition:border-color .15s; }
-.fgroup textarea { width:100%; min-height:128px; padding:11px 12px; border:1px solid var(--border); border-radius:6px; font-family:var(--mono); font-size:12px; background:var(--bg); color:var(--text); outline:none; transition:border-color .15s; resize:vertical; line-height:1.7; }
-.fgroup input:focus, .fgroup select:focus { border-color:var(--accent); }
-.fgroup textarea:focus { border-color:var(--accent); }
-.fgroup select option { background:var(--surface); }
-.frow { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.hint { font-size:11px; color:var(--muted); margin-top:5px; line-height:1.5; font-family:var(--mono); }
-.hint a { color:var(--accent); text-decoration:none; }
-.hint a:hover { text-decoration:underline; }
-
-.info-box { background:rgba(79,142,247,.08); border:1px solid rgba(79,142,247,.2); border-radius:6px; padding:10px 14px; font-size:12px; color:#a0bef8; line-height:1.7; margin-top:12px; display:none; }
-.warn-box { background:rgba(247,201,72,.08); border:1px solid rgba(247,201,72,.2); border-radius:6px; padding:10px 14px; font-size:12px; color:#f7d97c; line-height:1.6; margin-top:12px; }
-.test-result { margin-top:12px; padding:10px 14px; border-radius:6px; font-size:12px; font-family:var(--mono); display:none; line-height:1.6; }
-.test-ok  { background:rgba(62,207,142,.1); border:1px solid rgba(62,207,142,.25); color:var(--green); }
-.test-err { background:rgba(247,95,95,.1);  border:1px solid rgba(247,95,95,.25);  color:var(--red); }
-
-/* INBOX */
-.inbox-body { flex:1; display:flex; overflow:hidden; }
-.list-pane { width:380px; flex-shrink:0; border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
-.list-toolbar { padding:10px 14px; border-bottom:1px solid var(--border); display:flex; gap:8px; align-items:center; flex-shrink:0; }
-.search-box { flex:1; padding:7px 12px; border:1px solid var(--border); border-radius:6px; background:var(--bg); font-family:var(--mono); font-size:11px; color:var(--text); outline:none; }
-.search-box:focus { border-color:var(--accent); }
-.search-box::placeholder { color:var(--muted); }
-.email-list { flex:1; overflow-y:auto; }
-
-.erow { display:flex; gap:10px; padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
-.erow:hover { background:var(--surface2); }
-.erow.cur { background:rgba(79,142,247,.06); border-left:2px solid var(--accent); }
-.erow.unread .erow-subj { font-weight:600; color:var(--text); }
-.erow.spam-flag { border-left:2px solid var(--red); }
-
-.erow-chk { width:14px; height:14px; border:1px solid var(--border2); border-radius:3px; flex-shrink:0; margin-top:3px; appearance:none; background:transparent; cursor:pointer; }
-.erow-chk:checked { background:var(--accent); border-color:var(--accent); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5l2.5 2.5 4.5-4.5' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-size:9px; background-repeat:no-repeat; background-position:center; }
-
-.erow-av { width:32px; height:32px; border-radius:50%; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; flex-shrink:0; border:1px solid var(--border); font-family:var(--mono); }
-.erow-body { flex:1; min-width:0; }
-.erow-meta { display:flex; align-items:center; margin-bottom:2px; }
-.erow-from { font-size:12px; font-weight:500; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.erow-date { font-family:var(--mono); font-size:10px; color:var(--muted); flex-shrink:0; }
-.erow-subj { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:3px; }
-.erow-prev { font-size:11px; color:var(--muted); opacity:.7; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.erow-tags { display:flex; gap:4px; margin-top:5px; flex-wrap:wrap; }
-.etag { font-family:var(--mono); font-size:9px; padding:1px 5px; border-radius:3px; }
-.etag-work     { background:rgba(62,207,142,.12);  color:#3ecf8e; }
-.etag-finance  { background:rgba(247,201,72,.12);  color:#f7c948; }
-.etag-social   { background:rgba(79,142,247,.12);  color:#4f8ef7; }
-.etag-promo    { background:rgba(124,92,252,.12);  color:#7c5cfc; }
-.etag-travel   { background:rgba(0,200,220,.12);   color:#00c8dc; }
-.etag-spam     { background:rgba(247,95,95,.12);   color:#f75f5f; }
-.etag-star     { background:rgba(247,201,72,.12);  color:#f7c948; }
-
-.detail-pane { flex:1; overflow-y:auto; padding:24px 28px; }
-.detail-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--muted); gap:10px; }
-.detail-empty .big { font-size:48px; opacity:.3; }
-.d-from { font-size:18px; font-weight:600; margin-bottom:4px; }
-.d-subj { font-size:14px; color:var(--muted); margin-bottom:16px; }
-.d-meta { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:11px; color:var(--muted); }
-.d-body { font-size:13px; line-height:1.8; color:rgba(232,232,240,.85); white-space:pre-wrap; margin-bottom:24px; }
-.d-ai { background:rgba(79,142,247,.06); border:1px solid rgba(79,142,247,.15); border-radius:8px; padding:14px 18px; }
-.d-ai-lbl { font-family:var(--mono); font-size:10px; color:var(--accent); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
-.d-ai-lbl::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; }
-.d-ai-txt { font-size:12px; line-height:1.7; color:#a0bef8; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-/* BRIEF */
-.brief-body { flex:1; overflow-y:auto; padding:28px 32px; }
-.brief-top { display:flex; align-items:baseline; gap:14px; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
-.brief-h { font-size:24px; font-weight:600; font-family:var(--mono); }
-.brief-date { font-family:var(--mono); font-size:11px; color:var(--muted); }
-.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
-.stat-box { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; }
-.stat-n { font-family:var(--mono); font-size:30px; font-weight:600; line-height:1; margin-bottom:4px; }
-.stat-l { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
-.ai-brief { background:var(--surface); border:1px solid rgba(79,142,247,.2); border-radius:10px; padding:18px 22px; margin-bottom:22px; }
-.ai-brief-lbl { font-family:var(--mono); font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--accent); margin-bottom:10px; display:flex; align-items:center; gap:6px; }
-.ai-brief-lbl::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; }
-.ai-brief-txt { font-size:13px; line-height:1.75; color:rgba(232,232,240,.85); }
-.brief-cols { display:grid; grid-template-columns:3fr 2fr; gap:16px; }
-.bcard { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:16px; }
-.bcard-h { padding:12px 16px; border-bottom:1px solid var(--border); font-size:12px; font-weight:600; background:var(--surface2); }
-.bcard-b { padding:0; }
-.brow { padding:12px 16px; border-bottom:1px solid var(--border); font-size:12px; }
-.brow:last-child { border-bottom:none; }
-.brow-from { font-family:var(--mono); font-size:10px; color:var(--muted); margin-bottom:2px; }
-.brow-subj { margin-bottom:3px; font-weight:500; }
-.brow-sum { font-size:11px; color:var(--muted); line-height:1.5; }
-.crow { display:flex; align-items:center; gap:8px; padding:10px 16px; border-bottom:1px solid var(--border); font-size:12px; }
-.crow:last-child { border-bottom:none; }
-.crow-n { font-family:var(--mono); font-size:11px; color:var(--muted); margin-left:auto; }
-
-.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:var(--muted); text-align:center; gap:10px; }
-.empty-icon { font-size:40px; opacity:.35; }
-.empty-state p { font-size:13px; line-height:1.6; }
-
-.ai-banner { background:rgba(79,142,247,.07); border:1px solid rgba(79,142,247,.18); border-radius:8px; padding:12px 16px; margin:10px 14px; font-size:12px; line-height:1.7; color:#a0bef8; }
-.ai-banner-lbl { font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
-.prompt-examples { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; }
-.prompt-chip { padding:6px 10px; border:1px solid var(--border); border-radius:999px; background:rgba(255,255,255,.04); color:var(--muted); font-size:11px; cursor:pointer; transition:all .15s; }
-.prompt-chip:hover { color:var(--text); border-color:var(--border2); }
-.step-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:14px; }
-.strategy-card { background:rgba(79,142,247,.06); border:1px solid rgba(79,142,247,.18); border-radius:8px; padding:14px 16px; margin-top:14px; }
-.strategy-title { font-family:var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
-.strategy-text { font-size:12px; line-height:1.7; color:#a0bef8; margin-bottom:10px; }
-.strategy-list { display:flex; flex-direction:column; gap:6px; color:var(--text); font-size:12px; }
-.strategy-list div { padding-left:14px; position:relative; line-height:1.6; }
-.strategy-list div::before { content:"•"; position:absolute; left:0; color:var(--accent); }
-.label-stack { padding:8px 12px 14px; display:flex; flex-direction:column; gap:6px; }
-.label-item { display:flex; align-items:center; gap:9px; padding:8px; border:1px solid var(--border); border-radius:8px; background:rgba(255,255,255,.02); cursor:pointer; transition:all .15s; }
-.label-item:hover { background:var(--surface2); border-color:var(--border2); }
-.label-swatch { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
-.label-meta { flex:1; min-width:0; }
-.label-name { font-size:12px; color:var(--text); margin-bottom:2px; }
-.label-desc { font-size:10px; color:var(--muted); line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.ai-badge { background:rgba(79,142,247,.12); color:#9dc0ff; border:1px solid rgba(79,142,247,.18); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:9px; }
-.priority-pill { font-family:var(--mono); font-size:9px; padding:1px 5px; border-radius:3px; border:1px solid transparent; text-transform:uppercase; }
-.priority-high { color:#f75f5f; border-color:rgba(247,95,95,.3); background:rgba(247,95,95,.08); }
-.priority-medium { color:#f7c948; border-color:rgba(247,201,72,.25); background:rgba(247,201,72,.08); }
-.priority-low { color:#3ecf8e; border-color:rgba(62,207,142,.25); background:rgba(62,207,142,.08); }
-.action-badge { background:rgba(255,255,255,.06); color:var(--text); border:1px solid rgba(255,255,255,.12); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:9px; }
-
-@media (max-width: 900px) {
-  .setup-steps { grid-template-columns:1fr; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-b);
+  background:
+    radial-gradient(circle at top left, rgba(196,155,90,0.09), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(122,158,135,0.10), transparent 24%),
+    linear-gradient(180deg, #f8f5ef 0%, #f4f0e9 100%);
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.65;
+  overflow: hidden;
 }
 
-.toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border2); color:var(--text); padding:11px 16px; border-radius:8px; font-size:12px; z-index:999; transform:translateY(60px); opacity:0; transition:all .25s ease; display:flex; align-items:center; gap:8px; max-width:320px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
-.toast.show { transform:none; opacity:1; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
 
-.pbar { height:2px; background:var(--accent); width:0; position:fixed; top:0; left:0; z-index:1000; transition:width .3s; box-shadow:0 0 8px var(--accent); }
+#app { display: flex; height: 100vh; }
+#sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: rgba(250,248,245,0.92);
+  backdrop-filter: blur(14px);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#topbar {
+  height: 50px;
+  min-height: 50px;
+  background: rgba(250,248,245,0.9);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 10px;
+  backdrop-filter: blur(12px);
+  position: relative;
+}
+#content-area { flex: 1; display: flex; overflow: hidden; }
+#email-list-panel {
+  width: 340px;
+  min-width: 340px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(250,248,245,0.88);
+}
+#detail-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(250,248,245,0.72), rgba(250,248,245,0.54));
+}
 
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:500; display:none; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
-.modal-overlay.open { display:flex; }
-.modal { background:var(--surface); border:1px solid var(--border2); border-radius:12px; padding:28px; max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.6); }
-.modal h3 { font-size:16px; margin-bottom:8px; }
-.modal p { font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:20px; }
-.modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+#sidebar-header { padding: 22px 18px 14px; border-bottom: 1px solid var(--border); }
+.logo { font-family: var(--font-s); font-size: 20px; color: var(--text); font-style: italic; letter-spacing: -0.2px; }
+.logo span { color: var(--sage); }
+.logo-sub { font-size: 11px; color: var(--text3); font-family: var(--font-m); margin-top: 3px; letter-spacing: 0.4px; font-weight: 300; }
+.sidebar-nav { padding: 10px 8px; flex: 1; overflow-y: auto; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 400;
+  transition: all 0.15s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-b);
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--sage-dim); color: var(--sage); }
+.nav-icon { width: 15px; height: 15px; opacity: 0.7; flex-shrink: 0; }
+.nav-item.active .nav-icon { opacity: 1; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--sage);
+  color: #fff;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 10.5px;
+  font-family: var(--font-m);
+  font-weight: 400;
+}
+.sidebar-status { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
+.status-row { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text3); font-family: var(--font-m); font-weight: 300; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+.status-dot.ok { background: var(--sage); }
+.status-dot.warn { background: var(--amber); }
+.status-dot.err { background: var(--rose); }
 
-::-webkit-scrollbar { width:4px; }
-::-webkit-scrollbar-track { background:transparent; }
-::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:2px; }
+.topbar-title { font-family: var(--font-s); font-size: 16px; color: var(--text); flex: 1; font-style: italic; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  font-family: var(--font-b);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--text2);
+  transition: all 0.14s ease;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.btn.primary { background: var(--sage); color: #fff; border-color: transparent; }
+.btn.primary:hover { background: #6e9279; }
+.btn.danger { color: var(--rose); border-color: rgba(196,126,126,0.22); }
+.btn.danger:hover { background: var(--rose-dim); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.compact {
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+.sync-progress {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 18px;
+  width: min(320px, calc(100vw - 40px));
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: rgba(250,248,245,0.96);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.sync-progress.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.sync-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.sync-progress-title {
+  font-size: 10px;
+  color: var(--text3);
+  font-family: var(--font-m);
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+.sync-progress-count {
+  font-size: 11.5px;
+  color: var(--sage);
+  font-family: var(--font-m);
+}
+.sync-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface3);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.sync-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c9a261 0%, #7a9e87 100%);
+  transition: width 0.18s ease;
+}
+.sync-progress-message {
+  font-size: 13px;
+  color: var(--text2);
+  font-family: var(--font-s);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.view { display: none; }
+.view.active { display: flex; flex-direction: column; flex: 1; min-width: 0; height: 100%; overflow: hidden; }
+
+.list-toolbar { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.list-toolbar-label { font-size: 11.5px; color: var(--text3); font-family: var(--font-m); font-weight: 300; flex: 1; }
+.list-focus {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(250,248,245,0.8);
+}
+.focus-title { font-size: 10px; color: var(--text3); font-family: var(--font-m); letter-spacing: 0.7px; text-transform: uppercase; margin-bottom: 6px; }
+.focus-copy { font-size: 13px; color: var(--text2); font-family: var(--font-s); font-style: italic; line-height: 1.7; }
+.filter-chips { display: flex; gap: 5px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.chip {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  color: var(--text3);
+  background: none;
+  transition: all 0.12s ease;
+  font-family: var(--font-b);
+}
+.chip:hover { border-color: var(--border2); color: var(--text2); }
+.chip.active-chip { background: var(--sage-dim); border-color: var(--sage-b); color: var(--sage); }
+#email-list { flex: 1; overflow-y: auto; }
+.email-item { padding: 13px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s ease; position: relative; outline: none; }
+.email-item:hover { background: var(--surface2); }
+.email-item.selected { background: var(--bg2); border-left: 2px solid var(--sage); }
+.email-item:focus-visible {
+  background: rgba(122,158,135,0.08);
+  box-shadow: inset 0 0 0 1px var(--sage-b);
+}
+.email-item.unread .email-subject { color: var(--text); font-weight: 600; }
+.email-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+.email-from { font-size: 13px; color: var(--text); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.email-date { font-size: 10.5px; color: var(--text3); font-family: var(--font-m); font-weight: 300; flex-shrink: 0; }
+.email-subject { font-size: 12.5px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 3px; }
+.email-preview { font-size: 12px; color: var(--text3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.email-badges { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
+.badge { padding: 1px 7px; border-radius: 4px; font-size: 10px; font-weight: 500; font-family: var(--font-m); letter-spacing: 0.2px; }
+.badge-action { background: var(--amber-dim); color: #8c6b33; border: 1px solid rgba(196,155,90,0.22); }
+.badge-info { background: var(--blue-dim); color: #3d6a8a; border: 1px solid rgba(106,143,173,0.2); }
+.badge-promo { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
+.badge-learning { background: var(--lav-dim); color: #5f5490; border: 1px solid rgba(154,143,191,0.22); }
+.badge-high { background: var(--rose-dim); color: #9a4a4a; border: 1px solid rgba(196,126,126,0.22); }
+.badge-reply { background: var(--sage-dim); color: #4d7a5e; border: 1px solid var(--sage-b); }
+.badge-task { background: var(--lav-dim); color: #5f5490; border: 1px solid rgba(154,143,191,0.22); }
+.badge-deep { background: var(--rose-dim); color: #9a4a4a; border: 1px solid rgba(196,126,126,0.16); }
+.badge-vip { background: var(--amber-dim); color: #8c6b33; border: 1px solid rgba(196,155,90,0.25); }
+.badge-muted { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
+.badge-score { color: #fff; border: none; }
+.badge-score.high { background: var(--sage); }
+.badge-score.mid { background: var(--amber); }
+.badge-score.low { background: var(--rose); }
+.email-rule-line { display: flex; align-items: center; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+.rule-kv { font-size: 10.5px; color: var(--text3); font-family: var(--font-m); }
+.email-next-step {
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.next-step-text {
+  font-size: 12.5px;
+  color: var(--text2);
+  font-family: var(--font-s);
+  font-style: italic;
+}
+.next-step-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.detail-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--text3);
+  padding: 40px;
+  text-align: center;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+.detail-empty-ornament { font-family: var(--font-s); font-size: 36px; color: var(--border2); font-style: italic; line-height: 1; }
+.detail-shell {
+  width: min(100%, 760px);
+  margin: 20px auto 28px;
+  background: rgba(250,248,245,0.9);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--r) + 2px);
+  box-shadow: 0 18px 42px rgba(84, 66, 45, 0.08);
+  overflow: hidden;
+}
+.detail-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+.detail-header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+.detail-subject { font-family: var(--font-s); font-size: 19px; color: var(--text); line-height: 1.32; font-style: italic; flex: 1; min-width: 0; }
+.detail-meta { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.detail-meta-item { font-size: 12px; color: var(--text3); }
+.detail-meta-item strong { color: var(--text2); font-weight: 500; }
+.detail-nav { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.detail-actions { padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 7px; align-items: center; background: rgba(250,248,245,0.82); flex-wrap: wrap; }
+.detail-actions .btn { padding: 4px 9px; font-size: 11px; border-radius: 999px; }
+.detail-shortcuts { margin-left: auto; font-size: 10px; color: var(--text3); font-family: var(--font-m); white-space: nowrap; }
+.detail-decision { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; background: rgba(250,248,245,0.74); }
+.decision-card { background: rgba(255,255,255,0.38); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 9px 13px; min-width: 110px; box-shadow: var(--shadow); }
+.decision-card-label { font-size: 9.5px; color: var(--text3); font-family: var(--font-m); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 4px; font-weight: 300; }
+.decision-card-value { font-size: 13.5px; color: var(--text); font-weight: 500; font-family: var(--font-s); font-style: italic; }
+.decision-card-value.ok { color: var(--sage); }
+.decision-card-value.warn { color: var(--amber); }
+.decision-card-value.alert { color: var(--rose); }
+.decision-card-value.purple { color: var(--lavender); }
+.detail-summary,
+.detail-draft {
+  margin: 14px 20px 0;
+  background: rgba(250,248,245,0.82);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--sage);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 13px 15px;
+  box-shadow: var(--shadow);
+}
+.detail-draft { border-left-color: var(--lavender); }
+.detail-summary-label,
+.detail-draft-label { font-size: 10px; color: var(--sage); font-family: var(--font-m); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; font-weight: 300; }
+.detail-draft-label { color: var(--lavender); }
+.detail-summary-text,
+.detail-draft-text { font-size: 13.5px; color: var(--text2); line-height: 1.75; font-family: var(--font-s); font-style: italic; white-space: pre-wrap; }
+.detail-body { padding: 16px 20px 24px; font-size: 13.5px; color: var(--text2); line-height: 1.82; white-space: pre-wrap; font-family: var(--font-s); overflow-y: auto; max-height: 44vh; }
+.detail-why-toggle {
+  margin: 14px 20px 0;
+  width: calc(100% - 40px);
+  justify-content: space-between;
+}
+.detail-why {
+  margin: 12px 20px 0;
+  background: rgba(250,248,245,0.88);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--amber);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 13px 15px;
+  box-shadow: var(--shadow);
+}
+.detail-why-label { font-size: 10px; color: var(--amber); font-family: var(--font-m); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+.detail-why-text { font-size: 13px; color: var(--text2); line-height: 1.75; font-family: var(--font-s); white-space: pre-wrap; }
+
+#brief-view { padding: 0; overflow: hidden; }
+#brief-content { padding: 28px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; width: 100%; }
+#brief-content.is-empty { justify-content: center; }
+.brief-header { margin-bottom: 22px; }
+.brief-lead { font-family: var(--font-s); font-size: 24px; color: var(--text); font-style: italic; margin-bottom: 6px; }
+.brief-sublead { font-size: 13px; color: var(--text2); font-family: var(--font-s); line-height: 1.7; margin-bottom: 6px; }
+.brief-date { font-size: 11.5px; color: var(--text3); font-family: var(--font-m); font-weight: 300; }
+.brief-stats { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+.brief-sections-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px; align-items: start; }
+.stat-card { background: rgba(250,248,245,0.88); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 18px; min-width: min(160px, 100%); flex: 1; box-shadow: var(--shadow); }
+.stat-number { font-family: var(--font-s); font-size: 30px; line-height: 1; margin-bottom: 4px; font-style: italic; }
+.stat-label { font-size: 11.5px; color: var(--text3); font-family: var(--font-b); }
+.stat-number.green { color: var(--sage); }
+.stat-number.amber { color: var(--amber); }
+.stat-number.red { color: var(--rose); }
+.stat-number.purple { color: var(--lavender); }
+.brief-summary {
+  background: rgba(250,248,245,0.88);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--sage);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 14px 16px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+.brief-summary-label { font-size: 10px; color: var(--sage); font-family: var(--font-m); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px; }
+.brief-summary-text { font-size: 13.5px; color: var(--text2); line-height: 1.75; font-family: var(--font-s); font-style: italic; }
+.brief-section { margin-bottom: 0; background: rgba(250,248,245,0.88); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; box-shadow: var(--shadow); min-height: 0; min-width: 0; overflow: hidden; }
+.brief-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.brief-section-title { font-size: 10.5px; font-family: var(--font-m); letter-spacing: 0.7px; text-transform: uppercase; color: var(--text3); font-weight: 300; }
+.brief-section-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.brief-section-list { max-height: min(44vh, 420px); overflow-y: auto; overflow-x: hidden; padding-right: 6px; min-width: 0; }
+.learning-summary-list { display: flex; flex-direction: column; gap: 8px; }
+.learning-summary-item { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: rgba(255,255,255,0.42); cursor: pointer; transition: all 0.12s ease; }
+.learning-summary-item:hover { background: rgba(250,248,245,0.95); border-color: var(--border2); }
+.learning-summary-source { font-size: 11px; color: var(--text3); font-family: var(--font-m); margin-bottom: 5px; }
+.learning-summary-text { font-size: 13px; color: var(--text2); font-family: var(--font-s); line-height: 1.6; }
+.brief-mini-btn { border: 1px solid var(--border2); background: rgba(250,248,245,0.88); color: var(--text2); border-radius: 999px; padding: 5px 10px; font-size: 11px; font-family: var(--font-b); cursor: pointer; transition: all 0.12s ease; }
+.brief-mini-btn:hover { background: rgba(250,248,245,1); color: var(--text); }
+.brief-mini-btn.danger { color: var(--rose); border-color: rgba(190,92,92,0.25); }
+.brief-empty { min-height: 100%; display: flex; align-items: center; justify-content: center; flex: 1; }
+.brief-empty-hero {
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+  gap: 28px;
+  align-items: stretch;
+}
+.brief-empty-main,
+.brief-empty-side {
+  background: rgba(250,248,245,0.9);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--r) + 2px);
+  box-shadow: var(--shadow);
+}
+.brief-empty-main {
+  padding: 42px 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 360px;
+  background:
+    linear-gradient(135deg, rgba(196,155,90,0.08), transparent 40%),
+    rgba(250,248,245,0.92);
+}
+.brief-empty-side {
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.brief-empty-kicker { font-size: 10px; color: var(--text3); font-family: var(--font-m); letter-spacing: 0.7px; text-transform: uppercase; margin-bottom: 10px; }
+.brief-empty-title { font-family: var(--font-s); font-size: clamp(34px, 4vw, 48px); color: var(--text); font-style: italic; line-height: 1.06; letter-spacing: -0.4px; margin-bottom: 14px; max-width: 10ch; }
+.brief-empty-copy { font-size: 16px; color: var(--text2); line-height: 1.8; font-family: var(--font-s); max-width: 34ch; margin-bottom: 22px; }
+.brief-empty-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brief-empty-note { font-size: 11.5px; color: var(--text3); font-family: var(--font-m); }
+.brief-empty-date { font-size: 11.5px; color: var(--text3); font-family: var(--font-m); margin-top: 28px; }
+.brief-value-title { font-size: 10px; color: var(--text3); font-family: var(--font-m); letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 14px; }
+.brief-value-list { display: flex; flex-direction: column; gap: 12px; }
+.brief-value-item {
+  padding: 12px 12px 12px 16px;
+  border-left: 2px solid var(--sage);
+  background: rgba(255,255,255,0.42);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.brief-value-item-title { font-size: 17px; color: var(--text); font-family: var(--font-s); font-style: italic; margin-bottom: 2px; }
+.brief-value-item-copy { font-size: 12px; color: var(--text3); line-height: 1.6; }
+.brief-email-row { display: grid; grid-template-columns: minmax(92px, 140px) minmax(0, 1fr) auto; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: all 0.12s ease; border-radius: var(--r-sm); min-width: 0; }
+.brief-email-row:hover { background: rgba(250,248,245,0.68); padding-left: 10px; padding-right: 10px; margin: 0 -10px; }
+.brief-email-from { font-size: 13px; font-weight: 500; color: var(--text); min-width: 0; font-family: var(--font-b); overflow-wrap: anywhere; }
+.brief-email-subject { font-size: 13px; color: var(--text2); min-width: 0; font-family: var(--font-s); font-style: italic; overflow-wrap: anywhere; }
+.brief-email-badges { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
+.custom-categories-editor { display: flex; flex-direction: column; gap: 12px; }
+.custom-category-card {
+  background: rgba(250,248,245,0.88);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+.custom-category-card.empty-card {
+  border-style: dashed;
+  background: rgba(250,248,245,0.56);
+  color: var(--text3);
+}
+.custom-category-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.custom-category-title {
+  font-size: 10px;
+  color: var(--text3);
+  font-family: var(--font-m);
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+.custom-category-empty-copy {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.7;
+  font-family: var(--font-s);
+}
+
+#rules-view,
+#categories-view { overflow: hidden; }
+.rules-wrap,
+.categories-wrap { flex: 1; overflow-y: auto; padding: 28px; }
+.rules-title,
+.categories-title { font-family: var(--font-s); font-size: 28px; color: var(--text); font-style: italic; margin-bottom: 6px; }
+.rules-subtitle,
+.categories-subtitle { font-size: 12px; color: var(--text3); font-family: var(--font-m); margin-bottom: 20px; }
+.rule-card { background: rgba(250,248,245,0.88); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.rule-card-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; }
+.rule-card-title { font-family: var(--font-s); font-size: 17px; color: var(--text); font-style: italic; }
+.rule-card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rule-box { background: rgba(255,255,255,0.38); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 10px 12px; }
+.rule-box-label { font-size: 10px; color: var(--text3); font-family: var(--font-m); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px; }
+.rule-box-value { font-size: 13px; color: var(--text2); line-height: 1.6; font-family: var(--font-s); white-space: pre-wrap; }
+.category-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.category-group { margin-bottom: 24px; background: rgba(250,248,245,0.72); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; box-shadow: var(--shadow); }
+.category-group-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.category-group-title { font-family: var(--font-s); font-size: 18px; font-style: italic; color: var(--text); }
+.category-group-count { font-size: 11px; color: var(--text3); font-family: var(--font-m); }
+.category-email { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.category-email:last-child { border-bottom: none; }
+.category-email-main { min-width: 0; flex: 1; }
+.category-email-from { font-size: 12px; color: var(--text); font-weight: 600; margin-bottom: 2px; }
+.category-email-subj { font-size: 13px; color: var(--text2); font-family: var(--font-s); font-style: italic; }
+.category-email-side { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+#settings-view-wrap { overflow: hidden; }
+#settings-view { flex: 1; overflow-y: auto; padding: 28px; max-width: 880px; }
+.settings-title { font-family: var(--font-s); font-size: 24px; margin-bottom: 22px; font-style: italic; color: var(--text); }
+.setup-steps { display: flex; gap: 10px; margin-bottom: 26px; flex-wrap: wrap; }
+.step-card {
+  flex: 1;
+  min-width: 180px;
+  background: rgba(250,248,245,0.88);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px;
+  position: relative;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  box-shadow: var(--shadow);
+}
+.step-card.active-step { border-color: var(--sage-b); background: var(--sage-dim); }
+.step-num { font-family: var(--font-m); font-size: 10px; color: var(--text3); font-weight: 300; margin-bottom: 5px; }
+.step-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.step-desc { font-size: 11.5px; color: var(--text3); }
+.step-ok {
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  width: 17px;
+  height: 17px;
+  background: var(--sage);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #fff;
+}
+.settings-section { margin-bottom: 22px; }
+.settings-section-title { font-size: 10px; font-family: var(--font-m); letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); font-weight: 300; margin-bottom: 13px; }
+.form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 170px; }
+.form-label { font-size: 12px; color: var(--text2); margin-bottom: 5px; display: block; font-weight: 500; }
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  background: rgba(250,248,245,0.88);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 8px 11px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-b);
+  outline: none;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus { border-color: var(--sage-b); background: #fffdf9; }
+.form-select { cursor: pointer; appearance: none; -webkit-appearance: none; }
+.form-textarea { resize: vertical; min-height: 96px; line-height: 1.65; }
+.settings-actions { display: flex; gap: 8px; padding: 14px 0; flex-wrap: wrap; }
+.strategy-preview {
+  background: rgba(250,248,245,0.88);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--lavender);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 13px 15px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.75;
+  white-space: pre-wrap;
+  display: none;
+  font-family: var(--font-s);
+  font-style: italic;
+  box-shadow: var(--shadow);
+}
+.connection-test-result {
+  padding: 9px 13px;
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  font-family: var(--font-m);
+  font-weight: 300;
+  margin-top: 10px;
+  display: none;
+  white-space: pre-wrap;
+}
+.result-ok { background: var(--sage-dim); border: 1px solid var(--sage-b); color: #4d7a5e; }
+.result-err { background: var(--rose-dim); border: 1px solid rgba(196,126,126,0.3); color: #9a4a4a; }
+.form-help { font-size: 11px; color: var(--text3); margin-top: 5px; line-height: 1.6; }
+.form-help a { color: var(--blue); text-decoration: none; }
+.form-help a:hover { text-decoration: underline; }
+
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: rgba(250,248,245,0.95);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 9px 16px;
+  font-size: 12.5px;
+  color: var(--text2);
+  opacity: 0;
+  transition: all 0.22s ease;
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  font-family: var(--font-s);
+  font-style: italic;
+  box-shadow: var(--shadow);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid rgba(0,0,0,0.1);
+  border-top-color: var(--sage);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.hidden { display: none !important; }
+
+@media (max-width: 1024px) {
+  #sidebar { width: 188px; min-width: 188px; }
+  #email-list-panel { width: 300px; min-width: 300px; }
+}
+
+@media (max-width: 840px) {
+  body { overflow: auto; }
+  #app { flex-direction: column; height: auto; min-height: 100vh; }
+  #sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-nav { display: flex; gap: 6px; overflow-x: auto; padding: 10px; }
+  .nav-item { min-width: max-content; }
+  .sidebar-status { flex-direction: row; flex-wrap: wrap; }
+  #topbar { padding: 10px 12px; height: auto; min-height: 0; flex-wrap: wrap; }
+  #content-area { flex-direction: column; }
+  #email-list-panel,
+  #detail-panel { width: 100%; min-width: 0; }
+  #email-list-panel { max-height: 42vh; }
+  .detail-shell { width: 100%; margin: 0; border-left: none; border-right: none; border-bottom: none; border-radius: 0; box-shadow: none; }
+  .detail-header-top { flex-direction: column; }
+  .detail-nav { width: 100%; justify-content: flex-start; }
+  .detail-shortcuts { width: 100%; margin-left: 0; white-space: normal; }
+  .detail-body { max-height: none; }
+  .brief-empty-hero { grid-template-columns: 1fr; }
+  .brief-empty-main { padding: 30px 24px; min-height: auto; }
+  .brief-empty-side { padding: 22px 20px; }
+  .brief-empty-title { max-width: none; }
+  .brief-email-row { grid-template-columns: 1fr; gap: 6px; }
+  .brief-email-from { min-width: 0; }
+  .brief-email-badges { justify-content: flex-start; }
+  .rule-grid { grid-template-columns: 1fr; }
+  .category-email { flex-direction: column; }
+  .category-email-side { justify-content: flex-start; }
+}
 </style>
 </head>
 <body>
-
-<div class="pbar" id="pbar"></div>
-
-<div class="topbar">
-  <div class="logo">✦ Luci's Inbox<span class="logo-dot"> Helper</span></div>
-  <div class="topbar-sep"></div>
-  <div class="status-pill">
-    <div class="status-dot" id="statusDot"></div>
-    <span id="statusLabel">Not connected</span>
-  </div>
-</div>
-
-<div class="layout">
-
-  <aside class="sidebar">
-    <div class="nav-section">
-      <span class="nav-label">Mailbox</span>
-      <div class="nav-item" id="nav-inbox" onclick="goPanel('inbox',this)">
-        <span class="nav-icon">📬</span><span class="nav-name">Inbox</span>
-        <span class="nav-count" id="cnt-all">0</span>
-      </div>
-      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('starred')">
-        <span class="nav-icon">⭐</span><span class="nav-name">Starred</span>
-        <span class="nav-count" id="cnt-star">0</span>
-      </div>
-      <div class="nav-item" onclick="goPanel('inbox',this);setFilter('unread')">
-        <span class="nav-icon">●</span><span class="nav-name">Unread</span>
-        <span class="nav-count" id="cnt-unread">0</span>
-      </div>
+<div id="app">
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="logo"><span>Luci</span>'s inbox</div>
+      <div class="logo-sub">a quiet place to decide</div>
     </div>
-    <div class="nav-divider"></div>
-    <div class="nav-section">
-      <span class="nav-label" id="categoryLabel">Categories</span>
-    </div>
-    <div class="label-stack" id="categoryList">
-      <div class="label-desc">Default categories appear here until AI generates your custom system.</div>
-    </div>
-    <div class="nav-divider"></div>
-    <div class="nav-section">
-      <div class="nav-item active" id="nav-brief" onclick="goPanel('brief',this)">
-        <span class="nav-icon">📰</span><span class="nav-name">Daily Brief</span>
-      </div>
-      <div class="nav-item" id="nav-setup" onclick="goPanel('setup',this)">
-        <span class="nav-icon">⚙️</span><span class="nav-name">Settings</span>
-      </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="switchView('brief')" id="nav-brief">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M2 4h12M2 8h8M2 12h10" stroke-linecap="round"></path>
+        </svg>
+        Daily Brief
+      </button>
+      <button class="nav-item" onclick="switchView('inbox')" id="nav-inbox">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="1.5" y="3" width="13" height="10" rx="1.5"></rect>
+          <path d="M1.5 6h13M5 9.5h6"></path>
+        </svg>
+        Inbox
+        <span class="nav-badge" id="inbox-badge">0</span>
+      </button>
+      <button class="nav-item" onclick="switchView('settings')" id="nav-settings">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="8" cy="8" r="2.5"></circle>
+          <path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7" stroke-linecap="round"></path>
+        </svg>
+        Settings
+      </button>
+    </nav>
+    <div class="sidebar-status">
+      <div class="status-row"><div class="status-dot" id="status-imap"></div><span id="status-imap-label">email · not connected</span></div>
+      <div class="status-row"><div class="status-dot" id="status-ai"></div><span id="status-ai-label">ai · not configured</span></div>
     </div>
   </aside>
 
-  <main class="main">
-
-    <!-- ══ SETUP ══ -->
-    <div class="panel" id="panel-setup">
-      <div class="panel-header">
-        <span class="panel-title">Settings</span>
-      </div>
-      <div class="setup-body">
-        <div class="setup-inner">
-          <h1 class="setup-title">Luci's Inbox Helper</h1>
-          <p class="setup-sub">Connect your email, connect your AI model, and let Luci turn each message into a clear decision. Credentials stay in your browser and are only sent to your mail provider and chosen AI provider when you explicitly use them.</p>
-
-          <div class="setup-steps">
-            <div class="step-card">
-              <div class="step-head"><span class="step-num">1</span> Connect your email</div>
-              <div class="step-body">
-                <p class="step-intro">Choose your mailbox, add your email credentials, and pull in the latest messages so Luci has real inbox context to work with.</p>
-                <div class="step-grid">
-                  <div class="step-controls">
-                    <div class="fgroup">
-                      <label>Email provider</label>
-                    </div>
-                    <div class="provider-grid">
-                      <div class="provider-tile" onclick="pickProv('gmail',this)"><span class="picon">📧</span>Gmail</div>
-                      <div class="provider-tile" onclick="pickProv('outlook',this)"><span class="picon">💼</span>Outlook</div>
-                      <div class="provider-tile" onclick="pickProv('qq',this)"><span class="picon">🐧</span>QQ Mail</div>
-                      <div class="provider-tile" onclick="pickProv('163',this)"><span class="picon">☁️</span>163 Mail</div>
-                      <div class="provider-tile" onclick="pickProv('yahoo',this)"><span class="picon">📮</span>Yahoo</div>
-                      <div class="provider-tile" onclick="pickProv('custom',this)"><span class="picon">🔧</span>Custom</div>
-                    </div>
-                    <div id="customFields" style="display:none;margin-top:12px">
-                      <div class="frow">
-                        <div class="fgroup"><label>IMAP Host</label><input type="text" id="imapHost" placeholder="imap.example.com"></div>
-                        <div class="fgroup"><label>IMAP Port</label><input type="number" id="imapPort" value="993"></div>
-                      </div>
-                    </div>
-                    <div class="fgroup">
-                      <label>Email address</label>
-                      <input type="email" id="emailAddr" placeholder="you@gmail.com">
-                    </div>
-                    <div class="fgroup">
-                      <label>App password <span style="color:var(--accent);font-size:9px;text-transform:none;letter-spacing:0">(not your login password)</span></label>
-                      <input type="password" id="emailPass" placeholder="xxxx xxxx xxxx xxxx">
-                    </div>
-                    <div class="info-box" id="provHint"></div>
-                    <div class="frow" style="margin-top:14px">
-                      <div class="fgroup">
-                        <label>Emails to fetch</label>
-                        <select id="fetchCount">
-                          <option value="20">20 emails</option>
-                          <option value="50" selected>50 emails</option>
-                          <option value="100">100 emails</option>
-                          <option value="200">200 emails</option>
-                          <option value="500">500 emails</option>
-                        </select>
-                      </div>
-                      <div class="fgroup">
-                        <label>Folder</label>
-                        <select id="mailFolder">
-                          <option value="INBOX">INBOX</option>
-                          <option value="[Gmail]/All Mail">[Gmail] All Mail</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="step-panel">
-                    <div class="step-panel-label">What happens next</div>
-                    <div class="step-panel-title">Sync inbox context</div>
-                    <div class="step-panel-text">Luci will connect through the local Node server, fetch your latest messages, and unlock the Daily Brief plus inbox analysis.</div>
-                    <div class="warn-box" style="margin-top:12px">
-                      ⚠ Browsers cannot directly open IMAP. Start the local Node server first, then this page can test IMAP, sync mail, star, delete, and call AI through localhost.
-                    </div>
-                  </div>
-                </div>
-                <div class="step-footer">
-                  <button class="btn btn-primary btn-sm" onclick="saveConn()" id="btnSave">Connect &amp; Sync Inbox</button>
-                  <div class="step-status" id="emailStatus">No mailbox connected yet.</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="step-card">
-              <div class="step-head"><span class="step-num">2</span> Connect your AI API</div>
-              <div class="step-body">
-                <p class="step-intro">Connect the model you want Luci to use for summaries, reply drafts, and the Daily Brief.</p>
-                <div class="step-grid">
-                  <div class="step-controls">
-                    <div class="frow">
-                      <div class="fgroup">
-                        <label>AI Provider</label>
-                        <select id="aiProvider" onchange="onAIProviderChange(this.value)">
-                          <option value="openai">OpenAI</option>
-                          <option value="anthropic">Anthropic</option>
-                          <option value="kimi">Kimi</option>
-                          <option value="deepseek">DeepSeek</option>
-                          <option value="qwen">Qwen</option>
-                        </select>
-                      </div>
-                      <div class="fgroup">
-                        <label>Model</label>
-                        <select id="aiModel"></select>
-                      </div>
-                    </div>
-                    <div class="fgroup">
-                      <label>API Key</label>
-                      <input type="password" id="aiKey" placeholder="Paste provider API key">
-                      <p class="hint" id="aiHint">Used for summaries, reply drafts, and the Daily Brief. Stored locally only in this browser.</p>
-                    </div>
-                  </div>
-                  <div class="step-panel">
-                    <div class="step-panel-label">What happens next</div>
-                    <div class="step-panel-title">Validate your model connection</div>
-                    <div class="step-panel-text">Run a quick check from Luci's local server so you know your email setup and chosen AI provider can both be reached before analysis starts.</div>
-                    <div class="test-result" id="testResult"></div>
-                  </div>
-                </div>
-                <div class="step-footer">
-                  <button class="btn btn-sm" onclick="testConn()" id="btnTest">Test Email + AI</button>
-                  <div class="step-status" id="aiStatus">Model not validated yet.</div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <div class="step-card">
-            <div class="step-head" style="cursor:pointer" onclick="toggleReadme()">
-              <span class="step-num" style="background:var(--muted)">📖</span>
-              Real IMAP — local proxy setup
-              <span style="margin-left:auto;font-size:11px;color:var(--muted)" id="readmeToggle">▼ show</span>
-            </div>
-            <div class="step-body" id="readmeBody" style="display:none">
-              <div class="hint" style="font-size:12px;line-height:1.9">
-                Start the local server from this repo:<br><br>
-                <code style="background:var(--bg);padding:8px 12px;border-radius:5px;display:block;margin:8px 0;color:var(--green)">npm install</code>
-                <code style="background:var(--bg);padding:8px 12px;border-radius:5px;display:block;margin:8px 0;color:var(--accent)">npm start</code>
-                Then open <strong>http://localhost:3030/</strong><br><br>
-                The local server exposes IMAP + OpenAI endpoints on the same origin, so this page can work with real mail safely from your machine.
-              </div>
-            </div>
-          </div>
+  <div id="main">
+    <div id="topbar">
+      <span class="topbar-title" id="topbar-title">Daily Brief</span>
+      <button class="btn primary" onclick="syncEmails()" id="btn-sync">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M14 8a6 6 0 1 1-1.5-3.9"></path>
+          <path d="M14 1v4h-4" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <span id="btn-sync-label">Refresh inbox</span>
+      </button>
+      <div class="sync-progress" id="sync-progress">
+        <div class="sync-progress-head">
+          <div class="sync-progress-title" id="sync-progress-title">Mailbox Sync</div>
+          <div class="sync-progress-count" id="sync-progress-count">0%</div>
         </div>
+        <div class="sync-progress-track">
+          <div class="sync-progress-bar" id="sync-progress-bar"></div>
+        </div>
+        <div class="sync-progress-message" id="sync-progress-message">Waiting to sync...</div>
       </div>
     </div>
 
-    <!-- ══ INBOX ══ -->
-    <div class="panel" id="panel-inbox">
-      <div class="panel-header">
-        <span class="panel-title" id="inboxTitle">Inbox</span>
-        <button class="btn btn-sm" onclick="syncEmails()">↻ Sync</button>
-        <button class="btn btn-primary btn-sm" onclick="runAI()">✦ Start Analyze</button>
-        <button class="btn btn-sm" onclick="createMailboxLabels()">＋ Create Mailbox Labels</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteSel()">🗑 Delete selected</button>
-      </div>
-      <div class="inbox-body">
-        <div class="list-pane">
+    <div id="content-area">
+      <div class="view" id="inbox-view" style="flex-direction:row;width:100%">
+        <div id="email-list-panel">
           <div class="list-toolbar">
-            <input class="search-box" type="text" placeholder="Search…" oninput="doSearch(this.value)">
-            <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap">
-              <input type="checkbox" id="cbAll" style="accent-color:var(--accent)" onchange="selAll(this)"> All
-            </label>
+            <span class="list-toolbar-label" id="list-count">0 emails</span>
+            <button class="btn compact" onclick="clearSelection()">clear</button>
           </div>
-          <div class="email-list" id="emailList">
-            <div class="empty-state">
-              <div class="empty-icon">📭</div>
-              <p>Go to Settings to set up your mailbox,<br>then click Sync.</p>
+          <div class="list-focus">
+            <div class="focus-title">What To Do Next</div>
+            <div class="focus-copy" id="focus-copy">Start with what needs your attention now. Everything else can wait.</div>
+          </div>
+          <div class="filter-chips">
+            <button class="chip active-chip" onclick="setFilter('attention', this)">needs attention</button>
+            <button class="chip" onclick="setFilter('later', this)">later</button>
+            <button class="chip" onclick="setFilter('ignored', this)">ignored promos</button>
+            <button class="chip" onclick="setFilter('starred', this)">starred</button>
+          </div>
+          <div id="email-list"></div>
+        </div>
+
+        <div id="detail-panel">
+          <div class="detail-empty" id="detail-empty">
+            <div class="detail-empty-ornament">✦</div>
+            <div style="font-family:var(--font-s);font-size:17px;color:var(--text2);font-style:italic">select an email</div>
+            <div style="font-size:12.5px;color:var(--text3);max-width:260px;line-height:1.7;font-family:var(--font-s);font-style:italic">Luci will show you what to decide, what to reply, and what to let go.</div>
+          </div>
+          <div id="detail-content" style="display:none;flex:1;overflow-y:auto">
+            <div class="detail-shell">
+              <div class="detail-header">
+                <div class="detail-header-top">
+                  <div class="detail-subject" id="detail-subject"></div>
+                  <div class="detail-nav">
+                    <button class="btn compact" type="button" onclick="selectRelativeEmail(-1)" id="btn-prev-email" aria-label="Previous email">prev</button>
+                    <button class="btn compact" type="button" onclick="selectRelativeEmail(1)" id="btn-next-email" aria-label="Next email">next</button>
+                  </div>
+                </div>
+                <div class="detail-meta">
+                  <div class="detail-meta-item"><strong>from</strong> <span id="detail-from"></span></div>
+                  <div class="detail-meta-item"><strong>date</strong> <span id="detail-date"></span></div>
+                </div>
+              </div>
+              <div class="detail-actions">
+                <button class="btn" onclick="toggleStarSelected()" id="btn-star">star</button>
+                <button class="btn" onclick="summarizeEmail()" id="btn-summarize">summarize</button>
+                <button class="btn" onclick="draftReplySelected()" id="btn-draft">draft reply</button>
+                <button class="btn" onclick="createTaskSelected()">create task</button>
+                <button class="btn danger" onclick="deleteEmail()">delete</button>
+                <div class="detail-shortcuts">↑/↓ or j/k move · Enter open · x delete · Esc close · s star</div>
+              </div>
+              <div class="detail-decision" id="detail-decision"></div>
+              <button class="btn detail-why-toggle" onclick="toggleWhy()" id="btn-why-toggle">Why this? <span id="why-toggle-label">show</span></button>
+              <div class="detail-why hidden" id="detail-why">
+                <div class="detail-why-label">why this</div>
+                <div class="detail-why-text" id="detail-why-text"></div>
+              </div>
+              <div class="detail-summary" id="detail-summary" style="display:none">
+                <div class="detail-summary-label">ai note</div>
+                <div class="detail-summary-text" id="detail-summary-text"></div>
+              </div>
+              <div class="detail-draft" id="detail-draft" style="display:none">
+                <div class="detail-draft-label" id="detail-draft-label">draft</div>
+                <div class="detail-draft-text" id="detail-draft-text"></div>
+              </div>
+              <div class="detail-body" id="detail-body"></div>
             </div>
           </div>
         </div>
-        <div class="detail-pane" id="detailPane">
-          <div class="detail-empty"><div class="big">✉️</div><p>Select an email to read it</p></div>
+      </div>
+
+      <div class="view active" id="brief-view">
+        <div id="brief-content">
+          <div class="brief-header">
+            <div class="brief-lead">We make decisions easier for you.</div>
+            <div class="brief-sublead">Start with what matters, save the useful reading for later, and let the noise fall away.</div>
+            <div class="brief-date" id="brief-date"></div>
+          </div>
+          <div class="brief-stats" id="brief-stats"></div>
+          <div class="brief-summary" id="brief-summary" style="display:none">
+            <div class="brief-summary-label">today's note</div>
+            <div class="brief-summary-text" id="brief-summary-text"></div>
+          </div>
+          <div id="brief-sections"></div>
         </div>
       </div>
-    </div>
 
-    <!-- ══ BRIEF ══ -->
-    <div class="panel active" id="panel-brief">
-      <div class="panel-header">
-        <span class="panel-title">Daily Brief</span>
-        <button class="btn btn-primary btn-sm" onclick="genBrief()">✦ Generate</button>
-        <button class="btn btn-sm" onclick="exportBrief()">↑ Export</button>
-      </div>
-      <div class="brief-body" id="briefBody">
-        <div class="empty-state">
-          <div class="empty-icon">📰</div>
-          <p>Preparing your daily brief…</p>
+      <div class="view" id="categories-view">
+        <div class="categories-wrap">
+          <div class="categories-title">Categories</div>
+          <div class="categories-subtitle">Group the inbox by one rule dimension at a time.</div>
+          <div class="category-toolbar">
+            <select class="form-select" id="category-mode" style="max-width:220px" onchange="setCategoryMode(this.value)">
+              <option value="urgency">group by urgency</option>
+              <option value="action">group by action</option>
+              <option value="finance">group by finance</option>
+              <option value="custom_category">group by custom category</option>
+              <option value="priority">group by priority</option>
+              <option value="type">group by type</option>
+            </select>
+          </div>
+          <div id="categories-groups"></div>
         </div>
       </div>
-    </div>
 
-  </main>
-</div>
+      <div class="view" id="rules-view">
+        <div class="rules-wrap">
+          <div class="rules-title">Rules</div>
+          <div class="rules-subtitle">Structured rule outputs for each email.</div>
+          <div id="rules-list"></div>
+        </div>
+      </div>
 
-<!-- Delete modal -->
-<div class="modal-overlay" id="delModal">
-  <div class="modal">
-    <h3>Delete emails</h3>
-    <p id="delTxt">This will move selected emails to Trash.</p>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-danger" onclick="confirmDel()">Delete</button>
+      <div class="view" id="settings-view-wrap">
+        <div id="settings-view">
+          <div class="settings-title">Setup</div>
+          <div class="setup-steps">
+            <div class="step-card" id="step1-card"><div class="step-num">01</div><div class="step-title">Connect email</div><div class="step-desc">IMAP credentials</div></div>
+            <div class="step-card" id="step2-card"><div class="step-num">02</div><div class="step-title">Connect AI</div><div class="step-desc">Provider &amp; API key</div></div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">01 · email connection</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Provider</label>
+                <select class="form-select" id="email-preset" onchange="applyPreset(this.value)">
+                  <option value="">Custom IMAP</option>
+                  <option value="gmail">Gmail</option>
+                  <option value="outlook">Outlook</option>
+                  <option value="yahoo">Yahoo</option>
+                  <option value="qq">QQ Mail</option>
+                  <option value="163">163 Mail</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email address</label>
+                <input class="form-input" id="email-addr" type="email" placeholder="you@example.com">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">IMAP host</label>
+                <input class="form-input" id="imap-host" placeholder="imap.gmail.com">
+              </div>
+              <div class="form-group" style="max-width:90px">
+                <label class="form-label">Port</label>
+                <input class="form-input" id="imap-port" type="number" value="993">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password / App password</label>
+                <input class="form-input" id="imap-pass" type="password" placeholder="••••••••">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Folder</label>
+                <input class="form-input" id="imap-folder" value="INBOX">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Sync size (max)</label>
+                <input class="form-input" id="sync-size" type="number" value="50" min="1" max="500">
+              </div>
+            </div>
+            <div class="form-help" id="provider-help"></div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">02 · ai connection</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Provider</label>
+                <select class="form-select" id="ai-provider" onchange="applyAIPreset(this.value)">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="kimi">Kimi / Moonshot</option>
+                  <option value="qwen">Qwen</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Model</label>
+                <input class="form-input" id="ai-model" value="gpt-4o">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">API Key</label>
+                <input class="form-input" id="ai-key" type="password" placeholder="sk-…">
+              </div>
+            </div>
+            <div class="form-help" id="ai-help"></div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">03 · learn category</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Author whitelist</label>
+                <textarea class="form-input" id="learning-whitelist" rows="6" placeholder="One author or newsletter per line&#10;Fintech Brainfood&#10;Simon Taylor&#10;Payments Strategy Breakdown"></textarea>
+                <div class="form-help">Anything listed here will be treated as a learning newsletter source unless it clearly looks like promo, action, or transactional mail.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">04 · custom categories</div>
+            <div class="custom-categories-editor" id="custom-categories-editor"></div>
+            <div class="settings-actions" style="padding-top:10px">
+              <button class="btn" type="button" onclick="addCustomCategory()">add category</button>
+            </div>
+          </div>
+
+          <div class="settings-actions">
+            <button class="btn" onclick="testConnections()" id="btn-test">test connections</button>
+            <button class="btn primary" onclick="saveSettings()">save settings</button>
+          </div>
+          <div class="connection-test-result" id="test-result"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+<div id="toast"></div>
 
-<div class="toast" id="toast"><span id="toastIcon"></span><span id="toastText"></span></div>
+<script type="module">
+import {
+  emailDecision as classifySharedEmail,
+  buildDecisionRule,
+  fallbackOneLine,
+  confidenceTone
+} from "./decision-rules.js";
 
-<script>
 const API_BASE = location.protocol === "file:" ? "http://localhost:3030" : "";
-const AI_MODELS = {
-  openai: [
-    { value: "gpt-4o", label: "gpt-4o" },
-    { value: "gpt-4o-mini", label: "gpt-4o-mini" },
-    { value: "gpt-4.1-mini", label: "gpt-4.1-mini" }
-  ],
-  anthropic: [
-    { value: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet" },
-    { value: "claude-3-7-sonnet-latest", label: "Claude 3.7 Sonnet" },
-    { value: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku" }
-  ],
-  kimi: [
-    { value: "kimi-k2-0711-preview", label: "Kimi K2" },
-    { value: "moonshot-v1-8k", label: "Moonshot v1 8k" },
-    { value: "moonshot-v1-32k", label: "Moonshot v1 32k" }
-  ],
-  deepseek: [
-    { value: "deepseek-chat", label: "DeepSeek Chat" },
-    { value: "deepseek-reasoner", label: "DeepSeek Reasoner" }
-  ],
-  qwen: [
-    { value: "qwen-max", label: "Qwen Max" },
-    { value: "qwen-plus", label: "Qwen Plus" },
-    { value: "qwen-turbo", label: "Qwen Turbo" }
-  ]
-};
-
 const AI_HINTS = {
-  openai: 'Use an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a>.',
-  anthropic: 'Use an Anthropic API key from <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.',
-  kimi: 'Use a Kimi / Moonshot API key from the Moonshot platform console.',
-  deepseek: 'Use a DeepSeek API key from the DeepSeek platform console.',
-  qwen: 'Use a Qwen-compatible DashScope API key from Alibaba Cloud DashScope.'
+  openai: 'Use an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a>.',
+  anthropic: 'Use an Anthropic API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.',
+  kimi: "Use a Kimi / Moonshot API key from the Moonshot platform console.",
+  deepseek: "Use a DeepSeek API key from the DeepSeek platform console.",
+  qwen: "Use a Qwen-compatible DashScope API key from Alibaba Cloud DashScope."
 };
-
-const DECISION_LABELS = [
-  { name: "action", description: "Requires decision, action, coordination, approval, or execution.", color: "#4f8ef7" },
-  { name: "info", description: "Informational only. Useful to read, but no clear action is required.", color: "#3ecf8e" },
-  { name: "promo", description: "Promotional, marketing, newsletter-like, or low-value bulk communication.", color: "#f7c948" }
+const PROVIDER_HELP = {
+  gmail: "Gmail needs an app password with 2-step verification enabled.",
+  outlook: "Outlook usually works with your Microsoft password or an app password if 2FA is on.",
+  yahoo: "Yahoo Mail works best with an app password from Yahoo account security.",
+  qq: "QQ Mail requires IMAP enabled plus its authorization code.",
+  "163": "163 Mail requires IMAP enabled and an authorization code instead of your normal password."
+};
+const AI_MODELS = {
+  openai: "gpt-4o",
+  anthropic: "claude-3-7-sonnet-latest",
+  deepseek: "deepseek-chat",
+  kimi: "moonshot-v1-8k",
+  qwen: "qwen-plus"
+};
+const RULE_TEMPLATE = {
+  type: "action_required",
+  priority: "high",
+  action: "schedule",
+  urgency: "today",
+  key_entities: {
+    sender: "colleague",
+    topic: "API spec review",
+    deadline: "EOD tomorrow"
+  },
+  reason: {
+    why_type: "Explicit request for review",
+    why_action: "Requires focused time, not instant reply",
+    risk_if_ignored: "Blocks project progress"
+  },
+  confidence: 0.96
+};
+const DEMO_EMAILS = [
+  {
+    id: 1001,
+    uid: 1001,
+    from: "Sarah Chen",
+    addr: "sarah@company.com",
+    subj: "Q3 roadmap review — need your sign-off by EOD",
+    prev: "I've uploaded the revised deck. We need final approval before the board call tomorrow.",
+    body: "Hey,\n\nI've uploaded the revised Q3 roadmap deck to Drive. We need your final sign-off before the board call tomorrow at 9am.\n\nKey changes from last review:\n- Feature X moved to Q4\n- Resource allocation updated for the AI initiative\n- New success metrics added per investor feedback\n\nPlease review and reply with approval or comments by 5pm today.\n\nThanks,\nSarah",
+    date: new Date(Date.now() - 1000 * 60 * 40).toLocaleString(),
+    unread: true,
+    star: false,
+    cat: "Other"
+  },
+  {
+    id: 1002,
+    uid: 1002,
+    from: "GitHub",
+    addr: "noreply@github.com",
+    subj: "[company/backend] PR #492: Add rate limiting middleware",
+    prev: "Dan opened a pull request and requested your review.",
+    body: "Dan has opened pull request #492.\n\nAdd rate limiting middleware to API gateway.\n\nReview requested from you and backend-team.",
+    date: new Date(Date.now() - 1000 * 60 * 90).toLocaleString(),
+    unread: false,
+    star: false,
+    cat: "Other"
+  },
+  {
+    id: 1003,
+    uid: 1003,
+    from: "Notion",
+    addr: "team@mail.notion.so",
+    subj: "Your weekly digest is ready",
+    prev: "Here's what happened in your workspace this week.",
+    body: "Your weekly Notion digest.\n\n8 pages updated.\n3 comments awaiting reply.\n2 action items overdue.",
+    date: new Date(Date.now() - 1000 * 60 * 60 * 26).toLocaleString(),
+    unread: false,
+    star: false,
+    cat: "Newsletters"
+  }
 ];
 
-const S = {
-  connected: false,
+const state = {
   emails: [],
-  view: [],
-  sel: new Set(),
-  snoozed: new Set(),
-  filter: null,
-  openId: null,
-  cfg: {},
-  search: "",
-  aiLabels: [],
-  aiSummary: ""
+  learning: {
+    summaries: {},
+    loading: false,
+    signature: ""
+  },
+  settings: {
+    prov: "",
+    email: "",
+    pass: "",
+    folder: "INBOX",
+    count: 50,
+    imapHost: "",
+    imapPort: 993,
+    aiProvider: "openai",
+    aiModel: "gpt-4o",
+    aiKey: "",
+    learningWhitelist: "",
+    customCategories: []
+  },
+  ui: {
+    selectedEmail: null,
+    filter: "attention",
+    currentView: "brief",
+    connected: false,
+    categoryMode: "urgency",
+    syncProgress: {
+      visible: false,
+      title: "Mailbox Sync",
+      progress: 0,
+      message: "Waiting to sync...",
+      completed: 0,
+      total: 0
+    }
+  }
 };
+
+function esc(value) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function api(path, payload) {
   let response;
@@ -562,9 +1126,8 @@ async function api(path, payload) {
       body: JSON.stringify(payload || {})
     });
   } catch (error) {
-    throw new Error("Cannot reach the local Luci's Inbox Helper server. Start `npm start`, then open http://localhost:3030/");
+    throw new Error("Cannot reach the local Luci server. Start `npm start` and open http://localhost:3030/");
   }
-
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.ok === false) {
     throw new Error(data.error || `Request failed with ${response.status}`);
@@ -572,1010 +1135,1399 @@ async function api(path, payload) {
   return data;
 }
 
-(async function init() {
+function updatePrimarySyncButton() {
+  const btn = document.getElementById("btn-sync");
+  const label = document.getElementById("btn-sync-label");
+  if (!btn || !label) return;
+
+  const hasEmails = state.emails.length > 0;
+  label.textContent = hasEmails ? "Refresh inbox" : "Sync inbox";
+  btn.style.display = hasEmails ? "inline-flex" : "none";
+}
+
+function updateSyncProgress(title = "Mailbox Sync", progress = 0, message = "Waiting to sync...", completed = 0, total = 0, visible = true) {
+  state.ui.syncProgress = {
+    visible,
+    title: title || "Mailbox Sync",
+    progress: Math.max(0, Math.min(Number(progress) || 0, 100)),
+    message: message || "Syncing mailbox...",
+    completed: Number(completed) || 0,
+    total: Number(total) || 0
+  };
+
+  const panel = document.getElementById("sync-progress");
+  const titleEl = document.getElementById("sync-progress-title");
+  const bar = document.getElementById("sync-progress-bar");
+  const count = document.getElementById("sync-progress-count");
+  const copy = document.getElementById("sync-progress-message");
+  if (!panel || !titleEl || !bar || !count || !copy) return;
+
+  panel.classList.toggle("visible", visible);
+  titleEl.textContent = state.ui.syncProgress.title;
+  bar.style.width = `${state.ui.syncProgress.progress}%`;
+  count.textContent = state.ui.syncProgress.total
+    ? `${state.ui.syncProgress.completed}/${state.ui.syncProgress.total}`
+    : `${Math.round(state.ui.syncProgress.progress)}%`;
+  copy.textContent = state.ui.syncProgress.message;
+}
+
+function hideSyncProgress(delay = 800) {
+  window.clearTimeout(hideSyncProgress.timer);
+  hideSyncProgress.timer = window.setTimeout(() => {
+    updateSyncProgress("Mailbox Sync", 0, "Waiting to sync...", 0, 0, false);
+  }, delay);
+}
+
+async function syncEmailsWithProgress(payload) {
+  let response;
   try {
-    S.cfg = JSON.parse(localStorage.getItem("mm_cfg") || "{}");
+    response = await fetch(API_BASE + "/api/emails/sync-progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {})
+    });
   } catch (error) {
-    S.cfg = {};
+    throw new Error("Cannot reach the local Luci server. Start `npm start` and open http://localhost:3030/");
   }
 
-  hydrateForm();
-  updateStepStatuses();
-  updateCounts();
-  renderCategories();
-  renderBriefHome();
-
-  try {
-    const response = await fetch(API_BASE + "/api/health");
-    if (response.ok) {
-      document.getElementById("statusLabel").textContent = "Local server ready";
-      await autoRefreshBrief();
-    }
-  } catch (error) {
-    document.getElementById("statusLabel").textContent = "Start localhost:3030 server";
+  if (!response.ok || !response.body) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed with ${response.status}`);
   }
-})();
 
-function hydrateForm() {
-  document.getElementById("emailAddr").value = S.cfg.email || "";
-  document.getElementById("emailPass").value = S.cfg.pass || "";
-  document.getElementById("aiProvider").value = S.cfg.aiProvider || "openai";
-  populateModelOptions(S.cfg.aiProvider || "openai", S.cfg.aiModel || S.cfg.model);
-  document.getElementById("aiKey").value = S.cfg.aiKey || S.cfg.okey || "";
-  if (S.cfg.count) document.getElementById("fetchCount").value = S.cfg.count;
-  if (S.cfg.folder) document.getElementById("mailFolder").value = S.cfg.folder;
-  if (S.cfg.imapHost) document.getElementById("imapHost").value = S.cfg.imapHost;
-  if (S.cfg.imapPort) document.getElementById("imapPort").value = S.cfg.imapPort;
-  updateAIHint(S.cfg.aiProvider || "openai");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result = null;
 
-  if (S.cfg.prov) {
-    document.querySelectorAll(".provider-tile").forEach((tile) => {
-      if (tile.getAttribute("onclick").includes(`'${S.cfg.prov}'`)) {
-        tile.classList.add("sel");
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      if (event.type === "progress") {
+        updateSyncProgress("Mailbox Sync", event.progress, event.message, event.completed, event.total, true);
+      } else if (event.type === "result") {
+        result = event;
+      } else if (event.type === "error") {
+        throw new Error(event.error || "Sync failed");
       }
+    }
+  }
+
+  if (buffer.trim()) {
+    const event = JSON.parse(buffer);
+    if (event.type === "result") result = event;
+    if (event.type === "error") throw new Error(event.error || "Sync failed");
+  }
+
+  if (!result) {
+    throw new Error("Sync ended before the mailbox results arrived.");
+  }
+
+  return result;
+}
+
+async function deleteEmailsWithProgress(payload) {
+  let response;
+  try {
+    response = await fetch(API_BASE + "/api/emails/delete-progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {})
     });
-    document.getElementById("customFields").style.display = S.cfg.prov === "custom" ? "block" : "none";
-    updateHint(S.cfg.prov);
-  }
-}
-
-function readCfgFromForm() {
-  return {
-    ...S.cfg,
-    prov: S.cfg.prov,
-    email: document.getElementById("emailAddr").value.trim(),
-    pass: document.getElementById("emailPass").value.trim(),
-    aiProvider: document.getElementById("aiProvider").value,
-    aiKey: document.getElementById("aiKey").value.trim(),
-    aiModel: document.getElementById("aiModel").value,
-    count: document.getElementById("fetchCount").value,
-    folder: document.getElementById("mailFolder").value,
-    imapHost: document.getElementById("imapHost").value.trim(),
-    imapPort: document.getElementById("imapPort").value.trim()
-  };
-}
-
-function persistCfg() {
-  S.cfg = readCfgFromForm();
-  localStorage.setItem("mm_cfg", JSON.stringify(S.cfg));
-  updateStepStatuses();
-  return S.cfg;
-}
-
-function requireCfg() {
-  const cfg = persistCfg();
-  if (!cfg.prov) throw new Error("Please select an email provider.");
-  if (!cfg.email) throw new Error("Please enter your email address.");
-  if (!cfg.pass) throw new Error("Please enter your app password.");
-  if (cfg.prov === "custom" && !cfg.imapHost) throw new Error("Please enter the custom IMAP host.");
-  return cfg;
-}
-
-function requireAICfg() {
-  const cfg = persistCfg();
-  if (!cfg.aiKey) throw new Error("Please enter your AI API key.");
-  if (!cfg.aiModel) throw new Error("Please choose an AI model.");
-  return cfg;
-}
-
-function hasEmailConfig(cfg = S.cfg) {
-  return Boolean(cfg?.prov && cfg?.email && cfg?.pass && (cfg.prov !== "custom" || cfg.imapHost));
-}
-
-function hasAIConfig(cfg = S.cfg) {
-  return Boolean(cfg?.aiKey && cfg?.aiModel);
-}
-
-function setStepStatus(id, text, tone = "") {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = text;
-  el.className = `step-status${tone ? " " + tone : ""}`;
-}
-
-function updateStepStatuses() {
-  const cfg = S.cfg || {};
-
-  if (S.connected && cfg.email) {
-    setStepStatus("emailStatus", `Connected to ${cfg.email}${S.emails.length ? ` · ${S.emails.length} emails synced` : ""}`, "ok");
-  } else if (hasEmailConfig(cfg)) {
-    setStepStatus("emailStatus", "Email details saved locally. Sync when you're ready.");
-  } else {
-    setStepStatus("emailStatus", "No mailbox connected yet.");
+  } catch (error) {
+    throw new Error("Cannot reach the local Luci server. Start `npm start` and open http://localhost:3030/");
   }
 
-  if (hasAIConfig(cfg)) {
-    setStepStatus("aiStatus", `Ready to test ${(cfg.aiProvider || "openai").replace(/^./, (m) => m.toUpperCase())} / ${cfg.aiModel || "model"}.`);
-  } else {
-    setStepStatus("aiStatus", "Model not validated yet.");
+  if (!response.ok || !response.body) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed with ${response.status}`);
   }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      if (event.type === "progress") {
+        updateSyncProgress("Deleting Emails", event.progress, event.message, event.completed, event.total, true);
+      } else if (event.type === "result") {
+        result = event;
+      } else if (event.type === "error") {
+        throw new Error(event.error || "Delete failed");
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    const event = JSON.parse(buffer);
+    if (event.type === "result") result = event;
+    if (event.type === "error") throw new Error(event.error || "Delete failed");
+  }
+
+  if (!result) {
+    throw new Error("Delete ended before the mailbox response arrived.");
+  }
+
+  return result;
 }
 
-function renderBriefHome() {
-  const body = document.getElementById("briefBody");
-  if (!body) return;
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("luci-settings-v2") || "{}");
+    state.settings = { ...state.settings, ...saved };
+  } catch (error) {}
+  applySettingsToForm();
+  updateStepCards();
+  updateStatusBar();
+  renderEmailList();
+  renderBrief();
+  updatePrimarySyncButton();
+  renderCategoriesView();
+  renderRulesView();
+  switchView(state.ui.currentView || "brief");
+}
 
-  const cfg = persistCfg();
+function saveToStorage() {
+  localStorage.setItem("luci-settings-v2", JSON.stringify(state.settings));
+}
 
-  if (!hasEmailConfig(cfg)) {
-    body.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📰</div>
-        <p>Configure your email to unlock your daily brief.</p>
-        <button class="btn btn-primary btn-sm" onclick="goPanel('setup',document.getElementById('nav-setup'))">Configure your email</button>
+function normalizeCustomCategories(values = []) {
+  return (Array.isArray(values) ? values : [])
+    .map((item, index) => ({
+      id: String(item?.id || `custom-${Date.now()}-${index}`),
+      name: String(item?.name || "").trim(),
+      instructions: String(item?.instructions || "").trim()
+    }))
+    .filter((item) => item.name || item.instructions);
+}
+
+function renderCustomCategoriesEditor() {
+  const root = document.getElementById("custom-categories-editor");
+  if (!root) return;
+  const categories = normalizeCustomCategories(state.settings.customCategories);
+  state.settings.customCategories = categories;
+
+  if (!categories.length) {
+    root.innerHTML = `
+      <div class="custom-category-card empty-card">
+        <div class="custom-category-head">
+          <div class="custom-category-title">Custom category</div>
+        </div>
+        <div class="custom-category-empty-copy">Add a category name and describe the kind of emails it should catch. Example: <em>family logistics</em>, <em>school forms</em>, or <em>travel planning</em>.</div>
       </div>
     `;
     return;
   }
 
-  if (!hasAIConfig(cfg)) {
-    body.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🧠</div>
-        <p>Configure your AI API to generate Luci's daily brief.</p>
-        <button class="btn btn-primary btn-sm" onclick="goPanel('setup',document.getElementById('nav-setup'))">Configure your AI API</button>
+  root.innerHTML = categories.map((category, index) => `
+    <div class="custom-category-card" data-custom-category-id="${esc(category.id)}">
+      <div class="custom-category-head">
+        <div class="custom-category-title">Custom category ${index + 1}</div>
+        <button class="btn danger" type="button" onclick="removeCustomCategory(${JSON.stringify(category.id)})">remove</button>
       </div>
-    `;
-    return;
-  }
-
-  if (!S.connected || !S.emails.length) {
-    body.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">↻</div>
-        <p>Connect and sync your inbox to refresh today's brief.</p>
-        <button class="btn btn-primary btn-sm" onclick="saveConn({ navigate: 'brief', autoBrief: true })">Refresh Daily Brief</button>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category name</label>
+          <input class="form-input" data-custom-field="name" value="${esc(category.name)}" placeholder="family logistics">
+        </div>
       </div>
-    `;
-    return;
-  }
-
-  body.innerHTML = `
-    <div class="empty-state">
-      <div class="empty-icon">⏳</div>
-      <p>Refreshing your daily brief…</p>
-    </div>
-  `;
-}
-
-async function autoRefreshBrief() {
-  const cfg = persistCfg();
-  if (!hasEmailConfig(cfg) || !hasAIConfig(cfg)) {
-    renderBriefHome();
-    return;
-  }
-
-  try {
-    await saveConn({ silent: true, navigate: "brief", autoBrief: true });
-  } catch {}
-}
-
-function goPanel(name, el) {
-  document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
-  document.getElementById("panel-" + name).classList.add("active");
-  document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
-  if (el) el.classList.add("active");
-  if (name === "brief") {
-    if (S.connected && hasAIConfig(persistCfg()) && S.emails.length) {
-      genBrief();
-    } else {
-      renderBriefHome();
-    }
-  }
-  if (name !== "inbox") {
-    S.filter = null;
-    document.getElementById("inboxTitle").textContent = "Inbox";
-  }
-}
-
-function setFilter(f) {
-  S.filter = f;
-  S.openId = null;
-  renderDetail(null);
-  const m = { starred: "Starred", unread: "Unread", Work: "Work", Finance: "Finance", Social: "Social", Newsletters: "Newsletters", Travel: "Travel", Spam: "Spam" };
-  document.getElementById("inboxTitle").textContent = m[f] || (String(f || "").startsWith("label:") ? String(f).slice(6) : f);
-  renderList();
-}
-
-function buildEmailSnapshot(email, mode = "strategy") {
-  const snapshot = {
-    uid: email.uid,
-    from: email.from,
-    addr: email.addr,
-    subj: email.subj,
-    prev: email.prev,
-    cat: email.aiCategory || email.aiLabel || email.cat || "",
-    star: Boolean(email.star),
-    unread: Boolean(email.unread),
-    spam: Boolean(email.spam)
-  };
-
-  const body = String(email.body || "").replace(/\s+/g, " ").trim();
-  if (body) {
-    snapshot.body = body.slice(0, mode === "organize" ? 2000 : 1200);
-  }
-
-  return snapshot;
-}
-
-function buildEmailPayload(mode = "strategy") {
-  const limit = mode === "brief" ? 20 : 80;
-  return S.emails.slice(0, limit).map((email) => buildEmailSnapshot(email, mode));
-}
-
-function populateModelOptions(provider, selectedValue) {
-  const select = document.getElementById("aiModel");
-  const models = AI_MODELS[provider] || AI_MODELS.openai;
-  select.innerHTML = models.map((model) => `<option value="${x(model.value)}">${x(model.label)}</option>`).join("");
-  select.value = models.some((model) => model.value === selectedValue) ? selectedValue : models[0].value;
-}
-
-function updateAIHint(provider) {
-  document.getElementById("aiHint").innerHTML = AI_HINTS[provider] || AI_HINTS.openai;
-}
-
-function onAIProviderChange(provider) {
-  populateModelOptions(provider);
-  updateAIHint(provider);
-}
-
-function pickProv(key, el) {
-  document.querySelectorAll(".provider-tile").forEach((t) => t.classList.remove("sel"));
-  el.classList.add("sel");
-  S.cfg.prov = key;
-  document.getElementById("customFields").style.display = key === "custom" ? "block" : "none";
-  updateHint(key);
-}
-
-function updateHint(key) {
-  const el = document.getElementById("provHint");
-  const h = {
-    gmail: `<strong>Gmail App Password:</strong><br>
-      1. Enable 2-Step Verification at <a href="https://myaccount.google.com/security" target="_blank">myaccount.google.com/security</a><br>
-      2. Go to <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a><br>
-      3. Create an app password for Luci's Inbox Helper<br>
-      4. Paste the 16-character app password above`,
-    outlook: `<strong>Outlook / Hotmail:</strong> Usually use your Microsoft password. If 2FA is enabled, create an app password in your Microsoft security settings.`,
-    qq: `<strong>QQ Mail:</strong> Enable IMAP in settings and use the generated authorization code here.`,
-    "163": `<strong>163 Mail:</strong> Enable IMAP and use the authorization code instead of the normal password.`,
-    yahoo: `<strong>Yahoo Mail:</strong> Generate an app password in Yahoo account security and paste it here.`,
-    custom: `Enter your IMAP server hostname and port above.`
-  };
-  if (h[key]) {
-    el.innerHTML = h[key];
-    el.style.display = "block";
-  } else {
-    el.style.display = "none";
-  }
-}
-
-function toggleReadme() {
-  const b = document.getElementById("readmeBody");
-  const t = document.getElementById("readmeToggle");
-  const open = b.style.display === "none";
-  b.style.display = open ? "block" : "none";
-  t.textContent = open ? "▲ hide" : "▼ show";
-}
-
-async function testConn() {
-  const res = document.getElementById("testResult");
-  res.textContent = "⏳  Testing IMAP and local server…";
-  res.className = "test-result";
-  res.style.display = "block";
-  document.getElementById("btnTest").disabled = true;
-  setStepStatus("aiStatus", "Testing mailbox and AI connection…");
-
-  try {
-    const cfg = requireCfg();
-    const data = await api("/api/test-connection", cfg);
-    res.textContent = "✓  " + data.message;
-    res.className = "test-result test-ok";
-    setStepStatus("aiStatus", "Email + AI validation passed.", "ok");
-  } catch (error) {
-    res.textContent = "✗  " + error.message;
-    res.className = "test-result test-err";
-    setStepStatus("aiStatus", error.message, "err");
-  } finally {
-    document.getElementById("btnTest").disabled = false;
-  }
-}
-
-async function saveConn(options = {}) {
-  const { silent = false, navigate = "brief", autoBrief = false } = options;
-  document.getElementById("btnSave").disabled = true;
-  progress(30);
-  if (!silent) {
-    toast("🔗", "Connecting to your mailbox…");
-  }
-
-  try {
-    const cfg = requireCfg();
-    const data = await api("/api/emails/sync", cfg);
-    S.connected = true;
-    S.emails = data.emails || [];
-    S.openId = null;
-    S.sel.clear();
-    document.getElementById("statusDot").classList.add("on");
-    document.getElementById("statusLabel").textContent = `${cfg.email} · ${S.emails.length} emails`;
-    updateCounts();
-    renderCategories();
-    renderList();
-    renderDetail(null);
-    updateStepStatuses();
-    progress(100);
-    if (navigate === "brief") {
-      goPanel("brief", document.getElementById("nav-brief"));
-    } else if (navigate === "setup") {
-      goPanel("setup", document.getElementById("nav-setup"));
-    } else {
-      goPanel("inbox", document.getElementById("nav-inbox"));
-    }
-    if (autoBrief && hasAIConfig(cfg)) {
-      await genBrief({ silent });
-    }
-    if (!silent) {
-      toast("✓", `Connected. Loaded ${S.emails.length} emails.`);
-    }
-  } catch (error) {
-    setStepStatus("emailStatus", error.message, "err");
-    progress(100);
-    if (!silent) {
-      toast("✗", error.message);
-    } else {
-      renderBriefHome();
-    }
-    throw error;
-  } finally {
-    document.getElementById("btnSave").disabled = false;
-  }
-}
-
-async function syncEmails() {
-  if (!S.connected && !S.cfg.email) return toast("⚠", "Connect your mailbox in Settings first");
-  progress(45);
-  toast("↻", "Syncing mailbox…");
-  try {
-    const cfg = requireCfg();
-    const currentOpenId = S.openId;
-    const data = await api("/api/emails/sync", cfg);
-    const previousAssignments = new Map(
-      S.emails.map((email) => [
-        email.uid,
-        {
-          cat: email.cat,
-          legacyCat: email.legacyCat,
-          aiCategory: email.aiCategory,
-          aiLabel: email.aiLabel,
-          aiUrgency: email.aiUrgency,
-          aiEffort: email.aiEffort,
-          aiRequiresReply: email.aiRequiresReply,
-          aiFollowUp: email.aiFollowUp,
-          aiConvertToTask: email.aiConvertToTask,
-          aiReason: email.aiReason,
-          aiPriority: email.aiPriority
-        }
-      ])
-    );
-    S.emails = (data.emails || []).map((email) => {
-      const previous = previousAssignments.get(email.uid);
-      return previous ? { ...email, ...previous } : email;
-    });
-    S.view = [];
-    if (!S.emails.some((email) => email.id === currentOpenId)) {
-      S.openId = null;
-      renderDetail(null);
-    } else {
-      renderDetail(S.emails.find((email) => email.id === currentOpenId));
-    }
-    updateCounts();
-    renderCategories();
-    renderList();
-    updateStepStatuses();
-    progress(100);
-    toast("✓", `Synced ${S.emails.length} emails`);
-  } catch (error) {
-    progress(100);
-    toast("✗", error.message);
-  }
-}
-
-function getFilteredEmails() {
-  let emails = [...S.emails].filter((e) => !e.archived && !(e.snoozedUntil && new Date(e.snoozedUntil) > new Date()));
-  if (S.filter) {
-    if (S.filter === "starred") emails = emails.filter((e) => e.star);
-    else if (S.filter === "unread") emails = emails.filter((e) => e.unread);
-    else if (S.filter === "Spam") emails = emails.filter((e) => e.spam);
-    else if (String(S.filter).startsWith("label:")) emails = emails.filter((e) => (e.aiCategory || e.aiLabel || e.cat) === String(S.filter).slice(6));
-    else if (S.aiLabels.length) emails = emails.filter((e) => (e.aiCategory || e.aiLabel || e.cat) === S.filter);
-    else emails = emails.filter((e) => e.cat === S.filter);
-  }
-
-  if (S.search) {
-    const q = S.search.toLowerCase();
-    emails = emails.filter((e) =>
-      [e.subj, e.from, e.prev, e.addr, e.body].some((value) => String(value || "").toLowerCase().includes(q))
-    );
-  }
-  return emails;
-}
-
-function renderList() {
-  const list = document.getElementById("emailList");
-  const emails = getFilteredEmails();
-  S.view = emails;
-  document.getElementById("cbAll").checked = emails.length > 0 && emails.every((e) => S.sel.has(e.id));
-
-  if (!emails.length) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>No emails here yet.</p></div>`;
-    return;
-  }
-
-  list.innerHTML = emails.map((e) => `
-    <div class="erow ${e.unread ? "unread" : ""} ${e.spam ? "spam-flag" : ""} ${e.id === S.openId ? "cur" : ""}" onclick="openEmail(${e.id})">
-      <input type="checkbox" class="erow-chk" ${S.sel.has(e.id) ? "checked" : ""} onclick="event.stopPropagation()" onchange="toggleChk(${e.id},this)">
-      <div class="erow-av">${x((e.from || "?")[0])}</div>
-      <div class="erow-body">
-        <div class="erow-meta"><span class="erow-from">${x(e.from)}</span><span class="erow-date">${x(e.date)}</span></div>
-        <div class="erow-subj">${x(e.subj)}</div>
-        <div class="erow-prev">${x((e.prev || "").substring(0, 90))}${(e.prev || "").length > 90 ? "…" : ""}</div>
-        <div class="erow-tags">
-          ${(e.aiCategory || e.aiLabel)
-            ? `<span class="ai-badge">${x(e.aiCategory || e.aiLabel)}</span>`
-            : `<span class="etag etag-${cc(e.cat)}">${x(e.cat)}</span>`}
-          ${typeof e.aiRequiresReply === "boolean" ? `<span class="action-badge">${e.aiRequiresReply ? "needs reply" : "no reply"}</span>` : ""}
-          ${e.aiUrgency ? `<span class="priority-pill priority-${x(e.aiUrgency)}">${x(e.aiUrgency)}</span>` : ""}
-          ${e.aiEffort ? `<span class="action-badge">${x(e.aiEffort)}</span>` : ""}
-          ${e.star ? '<span class="etag etag-star">★ starred</span>' : ""}
-          ${e.spam ? '<span class="etag etag-spam">⚠ spam</span>' : ""}
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">What this category should catch</label>
+          <textarea class="form-textarea" rows="4" data-custom-field="instructions" placeholder="Emails about pickup coordination, sitter scheduling, school reminders, doctor appointments, or anything related to family logistics.">${esc(category.instructions)}</textarea>
         </div>
       </div>
     </div>
   `).join("");
 }
 
-function cc(cat) {
-  return { Work: "work", Finance: "finance", Social: "social", Newsletters: "promo", Promotions: "promo", Travel: "travel", Spam: "spam", Other: "work" }[cat] || "work";
+function readCustomCategoriesFromForm() {
+  const cards = Array.from(document.querySelectorAll("[data-custom-category-id]"));
+  state.settings.customCategories = cards.map((card) => ({
+    id: card.getAttribute("data-custom-category-id") || `custom-${Date.now()}`,
+    name: card.querySelector('[data-custom-field="name"]')?.value?.trim() || "",
+    instructions: card.querySelector('[data-custom-field="instructions"]')?.value?.trim() || ""
+  })).filter((item) => item.name || item.instructions);
 }
 
-function openEmail(id) {
-  const email = S.emails.find((item) => item.id === id);
-  if (!email) return;
-  email.unread = false;
-  S.openId = id;
-  renderList();
-  renderDetail(email);
-  updateCounts();
+function addCustomCategory() {
+  readCustomCategoriesFromForm();
+  state.settings.customCategories = normalizeCustomCategories([
+    ...state.settings.customCategories,
+    { id: `custom-${Date.now()}`, name: "", instructions: "" }
+  ]);
+  renderCustomCategoriesEditor();
 }
 
-function renderDetail(email) {
-  const p = document.getElementById("detailPane");
-  if (!email) {
-    p.innerHTML = `<div class="detail-empty"><div class="big">✉️</div><p>Select an email to read it</p></div>`;
+function removeCustomCategory(id) {
+  readCustomCategoriesFromForm();
+  state.settings.customCategories = normalizeCustomCategories(
+    state.settings.customCategories.filter((item) => item.id !== id)
+  );
+  renderCustomCategoriesEditor();
+}
+
+function applySettingsToForm() {
+  const s = state.settings;
+  setVal("email-preset", s.prov || "");
+  setVal("email-addr", s.email);
+  setVal("imap-host", s.imapHost);
+  setVal("imap-port", s.imapPort);
+  setVal("imap-pass", s.pass);
+  setVal("imap-folder", s.folder);
+  setVal("sync-size", s.count);
+  setVal("ai-provider", s.aiProvider);
+  setVal("ai-model", s.aiModel);
+  setVal("ai-key", s.aiKey);
+  setVal("learning-whitelist", s.learningWhitelist || "");
+  document.getElementById("provider-help").textContent = PROVIDER_HELP[s.prov] || "";
+  document.getElementById("ai-help").innerHTML = AI_HINTS[s.aiProvider] || AI_HINTS.openai;
+  setVal("category-mode", state.ui.categoryMode);
+  renderCustomCategoriesEditor();
+}
+
+function readSettingsFromForm() {
+  state.settings.prov = getVal("email-preset");
+  state.settings.email = getVal("email-addr").trim();
+  state.settings.imapHost = getVal("imap-host").trim();
+  state.settings.imapPort = Number(getVal("imap-port") || 993);
+  state.settings.pass = getVal("imap-pass");
+  state.settings.folder = getVal("imap-folder").trim() || "INBOX";
+  state.settings.count = Number(getVal("sync-size") || 50);
+  state.settings.aiProvider = getVal("ai-provider");
+  state.settings.aiModel = getVal("ai-model").trim();
+  state.settings.aiKey = getVal("ai-key").trim();
+  state.settings.learningWhitelist = getVal("learning-whitelist").trim();
+  readCustomCategoriesFromForm();
+}
+
+function currentCfg() {
+  readSettingsFromForm();
+  return {
+    prov: state.settings.prov,
+    email: state.settings.email,
+    pass: state.settings.pass,
+    folder: state.settings.folder,
+    count: state.settings.count,
+    imapHost: state.settings.imapHost,
+    imapPort: state.settings.imapPort,
+    aiProvider: state.settings.aiProvider,
+    aiKey: state.settings.aiKey,
+    aiModel: state.settings.aiModel
+  };
+}
+
+function currentLearningWhitelist() {
+  return String(state.settings.learningWhitelist || "")
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function currentOwnerTokens() {
+  const email = String(state.settings.email || "").trim().toLowerCase();
+  const localPart = email.split("@")[0] || "";
+  return localPart
+    .split(/[^a-z]+/)
+    .flatMap((token) => {
+      if (!token) return [];
+      if (token.length >= 3) return [token];
+      return [];
+    })
+    .filter(Boolean);
+}
+
+function withLearningSettings(email) {
+  return {
+    ...email,
+    learningWhitelist: currentLearningWhitelist(),
+    ownerEmail: state.settings.email || "",
+    ownerTokens: currentOwnerTokens(),
+    customCategories: state.settings.customCategories || []
+  };
+}
+
+function switchView(view) {
+  state.ui.currentView = view;
+  document.querySelectorAll(".view").forEach((el) => el.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach((el) => el.classList.remove("active"));
+  if (view === "inbox") {
+    document.getElementById("inbox-view").classList.add("active");
+    document.getElementById("nav-inbox").classList.add("active");
+    document.getElementById("topbar-title").textContent = "Inbox";
+    renderEmailList();
+  } else if (view === "brief") {
+    document.getElementById("brief-view").classList.add("active");
+    document.getElementById("nav-brief").classList.add("active");
+    document.getElementById("topbar-title").textContent = "Daily Brief";
+    renderBrief();
+  } else {
+    document.getElementById("settings-view-wrap").classList.add("active");
+    document.getElementById("nav-settings").classList.add("active");
+    document.getElementById("topbar-title").textContent = "Settings";
+  }
+}
+
+function setFilter(filter, el) {
+  state.ui.filter = filter;
+  document.querySelectorAll(".chip").forEach((chip) => chip.classList.remove("active-chip"));
+  if (el) el.classList.add("active-chip");
+  syncSelectedEmailWithFilter();
+  renderEmailList();
+}
+
+function clearSelection() {
+  state.ui.selectedEmail = null;
+  document.getElementById("detail-empty").style.display = "flex";
+  document.getElementById("detail-content").style.display = "none";
+  renderEmailList();
+}
+
+function getSelectedEmail() {
+  return state.emails.find((email) => email.id === state.ui.selectedEmail);
+}
+
+function filteredEmailIds() {
+  return filteredEmails().map((email) => email.id);
+}
+
+function syncSelectedEmailWithFilter() {
+  const ids = filteredEmailIds();
+  if (!ids.length) {
+    clearSelection();
+    return;
+  }
+  if (state.ui.selectedEmail && ids.includes(state.ui.selectedEmail)) return;
+  selectEmail(ids[0]);
+}
+
+function scrollSelectedEmailIntoView() {
+  const item = document.querySelector(".email-item.selected");
+  if (item) item.scrollIntoView({ block: "nearest" });
+}
+
+function updateDetailNavButtons() {
+  const ids = filteredEmailIds();
+  const selectedIndex = ids.indexOf(state.ui.selectedEmail);
+  const prevBtn = document.getElementById("btn-prev-email");
+  const nextBtn = document.getElementById("btn-next-email");
+  if (!prevBtn || !nextBtn) return;
+  prevBtn.disabled = selectedIndex <= 0;
+  nextBtn.disabled = selectedIndex === -1 || selectedIndex >= ids.length - 1;
+}
+
+function selectRelativeEmail(offset) {
+  const ids = filteredEmailIds();
+  if (!ids.length) return;
+  const currentIndex = ids.indexOf(state.ui.selectedEmail);
+  const baseIndex = currentIndex === -1 ? 0 : currentIndex;
+  const nextIndex = Math.max(0, Math.min(ids.length - 1, baseIndex + offset));
+  selectEmail(ids[nextIndex]);
+}
+
+function activateEmailFromKeyboard(id, event) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    selectEmail(id);
+  }
+}
+
+function isTypingTarget(target) {
+  if (!target) return false;
+  const tag = String(target.tagName || "").toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
+}
+
+function handleGlobalKeydown(event) {
+  if (isTypingTarget(event.target)) return;
+  if (state.ui.currentView !== "inbox") return;
+  const ids = filteredEmailIds();
+
+  if ((event.key === "ArrowDown" || event.key === "j") && ids.length) {
+    event.preventDefault();
+    selectRelativeEmail(1);
+    return;
+  }
+  if ((event.key === "ArrowUp" || event.key === "k") && ids.length) {
+    event.preventDefault();
+    selectRelativeEmail(-1);
+    return;
+  }
+  if (event.key === "Enter" && ids.length) {
+    event.preventDefault();
+    if (state.ui.selectedEmail) {
+      selectEmail(state.ui.selectedEmail);
+    } else {
+      selectEmail(ids[0]);
+    }
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    clearSelection();
+    return;
+  }
+  if (event.key === "x" && state.ui.selectedEmail) {
+    event.preventDefault();
+    deleteEmail();
+    return;
+  }
+  if (event.key === "s" && state.ui.selectedEmail) {
+    event.preventDefault();
+    toggleStarSelected();
+    return;
+  }
+  if (event.key === "Backspace" && state.ui.selectedEmail) {
+    event.preventDefault();
+    deleteEmail();
+  }
+}
+
+function applyPreset(value) {
+  const presets = {
+    gmail: { host: "imap.gmail.com", port: 993 },
+    outlook: { host: "outlook.office365.com", port: 993 },
+    yahoo: { host: "imap.mail.yahoo.com", port: 993 },
+    qq: { host: "imap.qq.com", port: 993 },
+    "163": { host: "imap.163.com", port: 993 }
+  };
+  document.getElementById("provider-help").textContent = PROVIDER_HELP[value] || "";
+  if (presets[value]) {
+    setVal("imap-host", presets[value].host);
+    setVal("imap-port", presets[value].port);
+  }
+}
+
+function applyAIPreset(value) {
+  setVal("ai-model", AI_MODELS[value] || "");
+  document.getElementById("ai-help").innerHTML = AI_HINTS[value] || AI_HINTS.openai;
+}
+
+function saveSettings() {
+  readSettingsFromForm();
+  state.learning.signature = "";
+  state.learning.summaries = {};
+  saveToStorage();
+  updateStatusBar();
+  updateStepCards();
+  renderEmailList();
+  renderBrief();
+  renderCategoriesView();
+  renderRulesView();
+  ensureLearningSummaries();
+  toast("settings saved");
+}
+
+function hasEmailConfig() {
+  return Boolean(state.settings.email && state.settings.pass && (state.settings.prov || state.settings.imapHost));
+}
+
+function hasAIConfig() {
+  return Boolean(state.settings.aiKey && state.settings.aiModel);
+}
+
+function updateStepCards() {
+  const s = state.settings;
+  const mapping = [
+    ["step1-card", Boolean(s.email && s.pass && (s.prov || s.imapHost))],
+    ["step2-card", Boolean(s.aiKey && s.aiModel)]
+  ];
+  mapping.forEach(([id, ok]) => {
+    const card = document.getElementById(id);
+    card.classList.toggle("active-step", ok);
+    const existing = card.querySelector(".step-ok");
+    if (ok && !existing) {
+      const mark = document.createElement("div");
+      mark.className = "step-ok";
+      mark.textContent = "✓";
+      card.appendChild(mark);
+    }
+    if (!ok && existing) existing.remove();
+  });
+}
+
+function updateStatusBar() {
+  const imapDot = document.getElementById("status-imap");
+  const imapLabel = document.getElementById("status-imap-label");
+  if (state.ui.connected && state.settings.email) {
+    imapDot.className = "status-dot ok";
+    imapLabel.textContent = state.settings.email;
+  } else if (state.settings.email) {
+    imapDot.className = "status-dot warn";
+    imapLabel.textContent = state.settings.email;
+  } else {
+    imapDot.className = "status-dot";
+    imapLabel.textContent = "email · not connected";
+  }
+
+  const aiDot = document.getElementById("status-ai");
+  const aiLabel = document.getElementById("status-ai-label");
+  if (state.settings.aiKey) {
+    aiDot.className = "status-dot ok";
+    aiLabel.textContent = `${state.settings.aiProvider} · ready`;
+  } else {
+    aiDot.className = "status-dot";
+    aiLabel.textContent = "ai · not configured";
+  }
+
+}
+
+function learningEmails() {
+  return state.emails.filter((email) => emailDecision(email).category === "learning");
+}
+
+function learningSignature(emails) {
+  return `${currentLearningWhitelist().join("|")}::${emails.map((email) => `${email.uid}:${email.isoDate || email.date || ""}`).join("|")}`;
+}
+
+async function ensureLearningSummaries() {
+  const emails = learningEmails();
+  const signature = learningSignature(emails);
+  if (!emails.length) {
+    state.learning.summaries = {};
+    state.learning.signature = "";
+    state.learning.loading = false;
+    return;
+  }
+  if (state.learning.signature === signature && Object.keys(state.learning.summaries).length) {
     return;
   }
 
-  p.innerHTML = `
-    <div class="d-from">${x(email.from)}</div>
-    <div class="d-subj">${x(email.subj)}</div>
-    <div class="d-meta">
-      <span>${x(email.addr || "")}</span><span>·</span><span>${x(email.date || "")}</span><span>·</span>
-      ${(email.aiCategory || email.aiLabel)
-        ? `<span class="ai-badge">${x(email.aiCategory || email.aiLabel)}</span>`
-        : `<span class="etag etag-${cc(email.cat)}" style="font-size:10px">${x(email.cat)}</span>`}
-      ${typeof email.aiRequiresReply === "boolean" ? `<span class="action-badge">${email.aiRequiresReply ? "needs reply" : "no reply"}</span>` : ""}
-      ${email.aiUrgency ? `<span class="priority-pill priority-${x(email.aiUrgency)}">${x(email.aiUrgency)}</span>` : ""}
-      ${email.aiEffort ? `<span class="action-badge">${x(email.aiEffort)}</span>` : ""}
-      ${email.star ? '<span class="etag etag-star" style="font-size:10px">★ starred</span>' : ""}
-    </div>
-    <div class="d-body">${x(email.body || email.prev || "(No body available)")}</div>
-    ${email.aiReason ? `<div class="d-ai" style="display:block;margin-bottom:16px"><div class="d-ai-lbl">Decision Summary</div><div class="d-ai-txt">Category: ${x(email.aiCategory || email.aiLabel || email.cat || "info")} · Needs reply: ${typeof email.aiRequiresReply === "boolean" ? (email.aiRequiresReply ? "Yes" : "No") : "Unknown"} · Urgency: ${x(email.aiUrgency || "medium")} · Effort: ${x(email.aiEffort || "quick")} · Follow-up: ${typeof email.aiFollowUp === "boolean" ? (email.aiFollowUp ? "Yes" : "No") : "Unknown"} · Convert to task: ${typeof email.aiConvertToTask === "boolean" ? (email.aiConvertToTask ? "Yes" : "No") : "Unknown"}<br><br>${x(email.aiReason)}</div></div>` : ""}
-    <div class="d-ai" style="display:block;margin-bottom:16px">
-      <div class="d-ai-lbl">Recommended Actions</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" onclick="draftReply(${email.id})">Draft reply</button>
-        <button class="btn btn-sm" onclick="createTask(${email.id})">Create task</button>
-        <button class="btn btn-sm" onclick="archiveEmail(${email.id})">Archive</button>
-        <button class="btn btn-sm" onclick="snoozeEmail(${email.id})">Snooze</button>
+  state.learning.loading = true;
+  renderBrief();
+  try {
+    const data = await api("/api/ai/learning-brief", {
+      provider: state.settings.aiProvider,
+      apiKey: state.settings.aiKey,
+      model: state.settings.aiModel,
+      emails: emails.map((email) => withLearningSettings(email))
+    });
+    state.learning.summaries = Object.fromEntries((data.summaries || []).map((item) => [item.uid, item.summary]));
+    state.learning.signature = signature;
+  } catch (error) {
+    state.learning.summaries = Object.fromEntries(emails.map((email) => [
+      email.uid,
+      `${email.subj || "Newsletter update"}${email.prev ? ` — ${email.prev}` : ""}`.slice(0, 180)
+    ]));
+    state.learning.signature = signature;
+  } finally {
+    state.learning.loading = false;
+    renderBrief();
+  }
+}
+
+function fmtDate(value) {
+  const raw = String(value || "");
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    const diff = Date.now() - parsed.getTime();
+    if (diff >= 0 && diff < 3600000) return `${Math.max(1, Math.round(diff / 60000))}m ago`;
+    if (diff < 86400000) return `${Math.max(1, Math.round(diff / 3600000))}h ago`;
+    return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+  return raw;
+}
+
+function emailDecision(email) {
+  const shared = classifySharedEmail(withLearningSettings(email));
+  const decision = {
+    ...shared,
+    category: email.aiCategory || email.aiLabel || shared.category,
+    urgency: email.aiUrgency || shared.urgency,
+    effort: email.aiEffort || shared.effort,
+    requires_reply: typeof email.aiRequiresReply === "boolean" ? email.aiRequiresReply : shared.requires_reply,
+    follow_up: typeof email.aiFollowUp === "boolean" ? email.aiFollowUp : shared.follow_up,
+    convert_to_task: typeof email.aiConvertToTask === "boolean" ? email.aiConvertToTask : shared.convert_to_task,
+    reason: email.aiReason || shared.reason
+  };
+  return {
+    ...decision,
+    sender_importance: shared.sender_importance,
+    rule: email.aiRule || buildDecisionRule(email, decision)
+  };
+}
+
+function filteredEmails() {
+  return state.emails.filter((email) => {
+    const d = emailDecision(email);
+    switch (state.ui.filter) {
+      case "attention":
+        return d.category !== "promo" && (d.requires_reply || d.urgency === "high" || d.convert_to_task);
+      case "later":
+        return !d.requires_reply && !d.convert_to_task && d.category !== "promo";
+      case "ignored":
+        return d.category === "promo";
+      case "starred":
+        return Boolean(email.star);
+      default:
+        return true;
+    }
+  });
+}
+
+function primaryActionLabel(decision) {
+  if (decision.category === "promo") return "Ignore";
+  if (decision.category === "learning") return "Learn";
+  if (decision.requires_reply) return "Reply";
+  if (decision.convert_to_task) return "Review";
+  if (decision.urgency === "high") return "Today";
+  return "Read later";
+}
+
+function timingLabel(decision) {
+  if (decision.category === "promo") return "Low priority";
+  if (decision.urgency === "high") return "Today";
+  if (decision.urgency === "medium") return "This week";
+  return "";
+}
+
+function renderEmailList() {
+  const list = document.getElementById("email-list");
+  const emails = filteredEmails();
+  const attentionCount = state.emails.filter((email) => {
+    const d = emailDecision(email);
+    return d.requires_reply || d.urgency === "high" || d.convert_to_task;
+  }).length;
+  const ignoredCount = state.emails.filter((email) => emailDecision(email).category === "promo").length;
+  document.getElementById("list-count").textContent = `${emails.length} email${emails.length !== 1 ? "s" : ""}`;
+  document.getElementById("inbox-badge").textContent = state.emails.filter((email) => email.unread).length;
+  document.getElementById("focus-copy").textContent = attentionCount
+    ? `${attentionCount} emails need attention first. ${ignoredCount ? `${ignoredCount} promos can safely wait.` : "Everything else can wait."}`
+    : "Nothing urgent right now. You can skim later or ignore promos.";
+
+  if (!emails.length) {
+    list.innerHTML = `<div style="padding:28px 16px;text-align:center;color:var(--text3);font-size:13px;font-family:var(--font-s);font-style:italic">nothing here yet.</div>`;
+    return;
+  }
+
+  list.innerHTML = emails.map((email) => {
+    const d = emailDecision(email);
+    const rule = d.rule;
+    const primary = primaryActionLabel(d);
+    const timing = timingLabel(d);
+    return `
+      <div
+        class="email-item${email.unread ? " unread" : ""}${state.ui.selectedEmail === email.id ? " selected" : ""}"
+        onclick="selectEmail(${JSON.stringify(email.id)})"
+        onkeydown="activateEmailFromKeyboard(${JSON.stringify(email.id)}, event)"
+        tabindex="0"
+        role="button"
+        aria-selected="${state.ui.selectedEmail === email.id ? "true" : "false"}"
+      >
+        <div class="email-header">
+          <div class="email-from">${esc(email.from || email.addr || "Unknown")}</div>
+          <div class="email-date">${esc(fmtDate(email.date))}</div>
+        </div>
+        <div class="email-subject">${esc(email.subj || "(no subject)")}</div>
+        <div class="email-preview">${esc(email.prev || "")}</div>
+        <div class="email-next-step">
+          <div class="next-step-text">${esc(primary)}</div>
+          <div class="next-step-meta">
+            ${timing ? `<span class="badge ${d.urgency === "high" ? "badge-high" : "badge-info"}">${esc(timing)}</span>` : ""}
+            ${email.star ? '<span class="badge badge-muted">starred</span>' : ""}
+          </div>
+        </div>
       </div>
-      ${email.taskDraft ? `<div class="strategy-card" style="display:block;margin-top:12px"><div class="strategy-title">Task Draft</div><div class="strategy-text">${x(email.taskDraft)}</div></div>` : ""}
-      ${email.replyDraft ? `<div class="strategy-card" style="display:block;margin-top:12px"><div class="strategy-title">Reply Draft</div><div class="strategy-text">${x(email.replyDraft)}</div></div>` : ""}
-      ${email.archived ? `<div class="hint" style="margin-top:10px;color:var(--green)">Archived in app view.</div>` : ""}
-      ${email.snoozedUntil ? `<div class="hint" style="margin-top:10px;color:var(--accent)">Snoozed until ${x(new Date(email.snoozedUntil).toLocaleString())}.</div>` : ""}
-    </div>
-    <div class="d-ai" id="aiBox" style="display:none">
-      <div class="d-ai-lbl">AI Summary</div>
-      <div class="d-ai-txt" id="aiTxt">Analyzing…</div>
-    </div>
-    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-primary btn-sm" onclick="summarize(${email.id})">✦ AI Summary</button>
-      <button class="btn btn-sm" onclick="toggleStar(${email.id})">${email.star ? "★ Unstar" : "☆ Star"}</button>
-      <button class="btn btn-danger btn-sm" onclick="delOne(${email.id})">🗑 Delete</button>
-    </div>
+    `;
+  }).join("");
+  updateDetailNavButtons();
+  scrollSelectedEmailIntoView();
+}
+
+function selectEmail(id) {
+  const email = state.emails.find((item) => item.id === id);
+  if (!email) return;
+  state.ui.selectedEmail = id;
+  email.unread = false;
+  document.getElementById("detail-empty").style.display = "none";
+  document.getElementById("detail-content").style.display = "flex";
+  document.getElementById("detail-subject").textContent = email.subj || "(no subject)";
+  document.getElementById("detail-from").textContent = `${email.from || "Unknown"} <${email.addr || "no-address"}>`;
+  document.getElementById("detail-date").textContent = email.date || "";
+  document.getElementById("detail-body").textContent = email.body || email.prev || "";
+  document.getElementById("btn-star").textContent = email.star ? "unstar" : "star";
+  renderDecisionCards(email);
+  renderSummaryAndDraft(email);
+  renderWhyThis(email);
+  renderEmailList();
+  updateDetailNavButtons();
+  updateStatusBar();
+}
+
+function renderDecisionCards(email) {
+  const d = emailDecision(email);
+  const container = document.getElementById("detail-decision");
+  container.innerHTML = `
+    <div class="decision-card"><div class="decision-card-label">next step</div><div class="decision-card-value ok">${esc(primaryActionLabel(d))}</div></div>
+    <div class="decision-card"><div class="decision-card-label">timing</div><div class="decision-card-value ${d.urgency === "high" ? "alert" : d.urgency === "medium" ? "warn" : ""}">${esc(timingLabel(d) || "No rush")}</div></div>
+    <div class="decision-card"><div class="decision-card-label">reply needed</div><div class="decision-card-value ${d.requires_reply ? "ok" : ""}">${d.requires_reply ? "yes" : "no"}</div></div>
+    <div class="decision-card"><div class="decision-card-label">can ignore</div><div class="decision-card-value ${d.category === "promo" ? "ok" : ""}">${d.category === "promo" ? "yes" : "no"}</div></div>
+    <div class="decision-card" style="flex:1;min-width:180px"><div class="decision-card-label">note</div><div class="decision-card-value" style="font-size:13px;font-weight:400;color:var(--text2)">${esc(d.reason || fallbackOneLine(d))}</div></div>
   `;
 }
 
-async function summarize(id) {
-  const email = S.emails.find((item) => item.id === id);
-  if (!email || !(S.cfg.aiKey || S.cfg.okey)) return toast("⚠", "Add your AI key in Settings");
+function renderWhyThis(email) {
+  const d = emailDecision(email);
+  const rule = d.rule;
+  document.getElementById("detail-why-text").textContent =
+    `Type: ${rule.type}\nAction: ${rule.action}\nPriority: ${rule.priority}\nConfidence: ${Math.round(rule.confidence * 100)}%\n\nWhy type: ${rule.reason.why_type}\nWhy action: ${rule.reason.why_action}\nRisk if ignored: ${rule.reason.risk_if_ignored}`;
+  document.getElementById("detail-why").classList.add("hidden");
+  document.getElementById("why-toggle-label").textContent = "show";
+}
 
-  const box = document.getElementById("aiBox");
-  const txt = document.getElementById("aiTxt");
-  if (!box || !txt) return;
+function toggleWhy() {
+  const panel = document.getElementById("detail-why");
+  const label = document.getElementById("why-toggle-label");
+  const isHidden = panel.classList.toggle("hidden");
+  label.textContent = isHidden ? "show" : "hide";
+}
 
-  box.style.display = "block";
-  txt.textContent = "Analyzing…";
+function renderSummaryAndDraft(email) {
+  const summary = document.getElementById("detail-summary");
+  const draft = document.getElementById("detail-draft");
+  if (email.aiSummary) {
+    summary.style.display = "block";
+    document.getElementById("detail-summary-text").textContent = email.aiSummary;
+  } else {
+    summary.style.display = "none";
+  }
+  if (email.replyDraft || email.taskDraft) {
+    draft.style.display = "block";
+    document.getElementById("detail-draft-label").textContent = email.replyDraft ? "reply draft" : "task draft";
+    document.getElementById("detail-draft-text").textContent = email.replyDraft || email.taskDraft;
+  } else {
+    draft.style.display = "none";
+  }
+}
 
+async function syncEmails() {
+  readSettingsFromForm();
+  if (!hasEmailConfig()) {
+    switchView("settings");
+    toast("add your email setup first");
+    return;
+  }
+  const btn = document.getElementById("btn-sync");
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div> syncing…`;
+  updateSyncProgress("Mailbox Sync", 6, "Connecting to mailbox...", 0, 0, true);
+  toast("connecting to mailbox…");
+  try {
+    const data = await syncEmailsWithProgress(currentCfg());
+    state.emails = data.emails || [];
+    state.learning.signature = "";
+    state.learning.summaries = {};
+    state.ui.connected = true;
+    saveToStorage();
+    updateSyncProgress("Mailbox Sync", 100, `Synced ${state.emails.length} emails.`, state.emails.length, state.emails.length, true);
+    hideSyncProgress();
+    toast(`synced ${state.emails.length} emails`);
+  } catch (error) {
+    if (!state.emails.length) state.emails = DEMO_EMAILS.map((email) => ({ ...email }));
+    state.ui.connected = false;
+    updateSyncProgress("Mailbox Sync", 100, error.message || "Sync failed.", 0, 0, true);
+    hideSyncProgress(1800);
+    toast("no server — showing demo data");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 8a6 6 0 1 1-1.5-3.9"></path><path d="M14 1v4h-4" stroke-linecap="round" stroke-linejoin="round"></path></svg> Sync`;
+    updateStatusBar();
+    renderEmailList();
+    renderBrief();
+    ensureLearningSummaries();
+    updateStepCards();
+  }
+}
+
+function buildEmailPayload(mode) {
+  return state.emails.slice(0, mode === "brief" ? 20 : 80).map((email) => ({
+    uid: email.uid,
+    from: email.from,
+    addr: email.addr,
+    subj: email.subj,
+    prev: email.prev,
+    body: String(email.body || "").slice(0, mode === "organize" ? 2000 : 1200),
+    cat: email.cat,
+    star: Boolean(email.star),
+    unread: Boolean(email.unread),
+    spam: Boolean(email.spam)
+  }));
+}
+
+async function summarizeEmail() {
+  const email = getSelectedEmail();
+  if (!email) return;
+  readSettingsFromForm();
+  if (!hasAIConfig()) {
+    toast("add your ai key first");
+    return;
+  }
+  const btn = document.getElementById("btn-summarize");
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div>`;
   try {
     const data = await api("/api/ai/summarize", {
-      provider: S.cfg.aiProvider || "openai",
-      apiKey: S.cfg.aiKey || S.cfg.okey,
-      model: S.cfg.aiModel || S.cfg.model,
+      provider: state.settings.aiProvider,
+      apiKey: state.settings.aiKey,
+      model: state.settings.aiModel,
       email
     });
-    txt.textContent = data.summary || "No summary returned.";
+    email.aiSummary = data.summary || "";
+    renderSummaryAndDraft(email);
+    toast("summary ready");
   } catch (error) {
-    txt.textContent = "Error: " + error.message;
+    email.aiSummary = fallbackOneLine(email);
+    renderSummaryAndDraft(email);
+    toast("summary fallback used");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "summarize";
   }
 }
 
-async function draftReply(id) {
-  const email = S.emails.find((item) => item.id === id);
+async function draftReplySelected() {
+  const email = getSelectedEmail();
   if (!email) return;
-  if (!hasAIConfig(persistCfg())) return toast("⚠", "Connect your AI model first");
-
+  readSettingsFromForm();
+  if (!hasAIConfig()) {
+    toast("add your ai key first");
+    return;
+  }
+  const btn = document.getElementById("btn-draft");
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div>`;
   try {
     const data = await api("/api/ai/draft-reply", {
-      provider: S.cfg.aiProvider || "openai",
-      apiKey: S.cfg.aiKey || S.cfg.okey,
-      model: S.cfg.aiModel || S.cfg.model,
+      provider: state.settings.aiProvider,
+      apiKey: state.settings.aiKey,
+      model: state.settings.aiModel,
       email,
-      decision: {
-        category: email.aiCategory || email.aiLabel || email.cat,
-        requires_reply: email.aiRequiresReply,
-        urgency: email.aiUrgency,
-        effort: email.aiEffort,
-        follow_up: email.aiFollowUp,
-        convert_to_task: email.aiConvertToTask
-      }
+      decision: emailDecision(email)
     });
     email.replyDraft = data.draft || "";
-    renderDetail(email);
-    toast("✦", "Reply draft ready");
+    renderSummaryAndDraft(email);
+    toast("reply draft ready");
   } catch (error) {
-    toast("✗", error.message);
+    email.replyDraft = `Hi ${email.from || ""},\n\nThanks for the note. I reviewed your email and will follow up shortly.\n\nBest,\nLuci`;
+    renderSummaryAndDraft(email);
+    toast("draft fallback used");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "draft reply";
   }
 }
 
-function createTask(id) {
-  const email = S.emails.find((item) => item.id === id);
+function createTaskSelected() {
+  const email = getSelectedEmail();
   if (!email) return;
-  email.taskDraft = `${email.subj}\nOwner: Me\nUrgency: ${email.aiUrgency || "medium"}\nEffort: ${email.aiEffort || "quick"}\nWhy: ${email.aiReason || "Follow up on this email."}`;
+  const d = emailDecision(email);
+  email.taskDraft = `${email.subj || "(no subject)"}\nOwner: me\nUrgency: ${d.urgency}\nEffort: ${d.effort}\nNext step: ${d.reason || fallbackOneLine(email)}`;
   email.aiConvertToTask = true;
-  renderDetail(email);
-  renderList();
-  genBrief({ silent: true });
-  toast("✓", "Task draft created");
+  renderSummaryAndDraft(email);
+  renderDecisionCards(email);
+  renderEmailList();
+  renderBrief();
+  toast("task draft created");
 }
 
-function archiveEmail(id) {
-  const email = S.emails.find((item) => item.id === id);
+async function toggleStarSelected() {
+  const email = getSelectedEmail();
   if (!email) return;
-  email.archived = true;
-  if (S.openId === id) {
-    S.openId = null;
-    renderDetail(null);
-  }
-  renderList();
-  genBrief({ silent: true });
-  toast("✓", "Archived in app view");
-}
-
-function snoozeEmail(id) {
-  const email = S.emails.find((item) => item.id === id);
-  if (!email) return;
-  const until = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  email.snoozedUntil = until.toISOString();
-  if (S.openId === id) {
-    S.openId = null;
-    renderDetail(null);
-  }
-  renderList();
-  genBrief({ silent: true });
-  toast("⏰", "Snoozed for 24 hours");
-}
-
-async function runAI() {
-  if (!S.connected) return toast("⚠", "Connect your mailbox first");
-
-  toast("✦", "Generating decision summaries…");
-  progress(45);
-
-  try {
-    const data = await api("/api/ai/organize", {
-      emails: buildEmailPayload("organize")
-    });
-
-    const decisions = new Map((data.decisions || []).map((item) => [item.uid, item]));
-    S.aiSummary = data.summary || "";
-    S.aiLabels = data.labels || DECISION_LABELS;
-    S.emails = S.emails.map((email) => {
-      const decision = decisions.get(email.uid);
-      if (!decision) return { ...email, aiCategory: "", aiLabel: "", aiUrgency: "", aiEffort: "", aiRequiresReply: "", aiFollowUp: "", aiConvertToTask: "", aiReason: "", legacyCat: email.legacyCat || email.cat };
-      return {
-        ...email,
-        legacyCat: email.legacyCat || email.cat,
-        cat: decision.category,
-        aiCategory: decision.category,
-        aiLabel: decision.category,
-        aiUrgency: decision.urgency,
-        aiEffort: decision.effort,
-        aiRequiresReply: decision.requires_reply,
-        aiFollowUp: decision.follow_up,
-        aiConvertToTask: decision.convert_to_task,
-        aiReason: decision.reason
-      };
-    });
-
-    updateCounts();
-    renderCategories();
-    renderList();
-    if (S.openId) {
-      renderDetail(S.emails.find((email) => email.id === S.openId) || null);
-    }
-    await genBrief({ silent: true });
-    progress(100);
-    showBanner(data.summary || "Analysis complete.");
-    toast("✦", "Decision refresh complete");
-  } catch (error) {
-    progress(100);
-    toast("✗", error.message);
-  }
-}
-
-function showBanner(msg) {
-  let b = document.getElementById("aiBanner");
-  if (!b) {
-    b = document.createElement("div");
-    b.id = "aiBanner";
-    b.className = "ai-banner";
-    const list = document.getElementById("emailList");
-    list.parentNode.insertBefore(b, list);
-  }
-  b.innerHTML = `<div class="ai-banner-lbl">✦ AI Analysis</div>${x(msg)}`;
-}
-
-function toggleChk(id, cb) {
-  if (cb.checked) S.sel.add(id);
-  else S.sel.delete(id);
-}
-
-function selAll(cb) {
-  S.view.forEach((e) => {
-    if (cb.checked) S.sel.add(e.id);
-    else S.sel.delete(e.id);
-  });
-  renderList();
-}
-
-function deleteSel() {
-  if (!S.sel.size) return toast("⚠", "Select emails first");
-  document.getElementById("delTxt").textContent = `Delete ${S.sel.size} email(s)? They will be moved to Trash.`;
-  document.getElementById("delModal").classList.add("open");
-}
-
-function delOne(id) {
-  S.sel.clear();
-  S.sel.add(id);
-  document.getElementById("delTxt").textContent = "Delete this email? It will be moved to Trash.";
-  document.getElementById("delModal").classList.add("open");
-}
-
-async function confirmDel() {
-  const ids = Array.from(S.sel);
-  if (!ids.length) return closeModal();
-
-  try {
-    await api("/api/emails/delete", { cfg: S.cfg, uids: ids });
-    S.emails = S.emails.filter((e) => !S.sel.has(e.id));
-    if (S.sel.has(S.openId)) {
-      S.openId = null;
-      renderDetail(null);
-    }
-    const n = S.sel.size;
-    S.sel.clear();
-    closeModal();
-    updateCounts();
-    renderList();
-    toast("🗑", `Deleted ${n} email(s)`);
-  } catch (error) {
-    toast("✗", error.message);
-  }
-}
-
-async function toggleStar(id) {
-  const email = S.emails.find((item) => item.id === id);
-  if (!email) return;
-
   const nextStar = !email.star;
   try {
-    await api("/api/emails/star", { cfg: S.cfg, uid: id, star: nextStar });
-    email.star = nextStar;
-    renderList();
-    renderDetail(email);
-    updateCounts();
-  } catch (error) {
-    toast("✗", error.message);
-  }
-}
-
-function closeModal() {
-  document.getElementById("delModal").classList.remove("open");
-}
-
-function doSearch(q) {
-  S.search = q.trim();
-  renderList();
-}
-
-async function genBrief(options = {}) {
-  const { silent = false } = options;
-  if (!S.connected) {
-    renderBriefHome();
-    if (!silent) toast("⚠", "Connect your mailbox first");
-    return;
-  }
-  if (!hasAIConfig(persistCfg())) {
-    renderBriefHome();
-    if (!silent) toast("⚠", "Configure your AI API first");
-    return;
-  }
-  const body = document.getElementById("briefBody");
-  body.innerHTML = `<div class="empty-state"><div class="empty-icon">⏳</div><p>Generating your daily brief…</p></div>`;
-  progress(40);
-
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  const total = S.emails.length;
-  const needsReply = S.emails.filter((e) => e.aiRequiresReply === true).length;
-  const highUrgency = S.emails.filter((e) => e.aiUrgency === "high").length;
-  const deepWork = S.emails.filter((e) => e.aiEffort === "deep").length;
-  const followUps = S.emails.filter((e) => e.aiFollowUp === true).length;
-  const taskCount = S.emails.filter((e) => e.aiConvertToTask === true).length;
-  const spam = S.emails.filter((e) => e.spam).length;
-
-  let aiText = `You have ${needsReply} emails that likely need a reply, ${highUrgency} high-urgency items, ${deepWork} deeper reads, and ${taskCount} messages that should probably become tracked work.`;
-
-  if (S.cfg.aiKey || S.cfg.okey) {
-    try {
-      const data = await api("/api/ai/brief", {
-        provider: S.cfg.aiProvider || "openai",
-        apiKey: S.cfg.aiKey || S.cfg.okey,
-        model: S.cfg.aiModel || S.cfg.model,
-        emails: buildEmailPayload("brief")
-      });
-      aiText = data.brief || aiText;
-    } catch (error) {
-      aiText = `${aiText}\n\nAI note: ${error.message}`;
+    if (state.ui.connected) {
+      await api("/api/emails/star", { cfg: currentCfg(), uid: email.id, star: nextStar });
     }
-  }
-
-  progress(100);
-
-  const replyNowList = S.emails
-    .filter((e) => e.aiRequiresReply === true)
-    .sort((a, b) => {
-      const urgencyRank = { high: 0, medium: 1, low: 2 };
-      return (urgencyRank[a.aiUrgency] ?? 3) - (urgencyRank[b.aiUrgency] ?? 3);
-    })
-    .slice(0, 4);
-  const deepWorkList = S.emails
-    .filter((e) => e.aiEffort === "deep" || e.aiConvertToTask === true)
-    .slice(0, 4);
-  const spamList = S.emails.filter((e) => e.spam);
-
-  body.innerHTML = `
-    <div class="brief-top">
-      <span class="brief-h">Daily Brief</span>
-      <span class="brief-date">${today}</span>
-    </div>
-    <div class="stats-row">
-      <div class="stat-box"><div class="stat-n">${total}</div><div class="stat-l">Total</div></div>
-      <div class="stat-box"><div class="stat-n" style="color:var(--accent)">${needsReply}</div><div class="stat-l">Needs Reply</div></div>
-      <div class="stat-box"><div class="stat-n" style="color:var(--yellow)">${highUrgency}</div><div class="stat-l">High Urgency</div></div>
-      <div class="stat-box"><div class="stat-n" style="color:var(--green)">${taskCount}</div><div class="stat-l">Convert To Task</div></div>
-    </div>
-    <div class="ai-brief">
-      <div class="ai-brief-lbl">AI Summary</div>
-      <div class="ai-brief-txt">${x(aiText)}</div>
-    </div>
-    <div class="brief-cols">
-      <div>
-        <div class="bcard">
-          <div class="bcard-h">↩ Needs reply first</div>
-          <div class="bcard-b">
-            ${replyNowList.length ? replyNowList.map((e) => `<div class="brow"><div class="brow-from">${x(e.addr)}</div><div class="brow-subj">${x(e.subj)}</div><div class="brow-sum">Urgency: ${x(e.aiUrgency || "medium")} · Effort: ${x(e.aiEffort || "quick")} · ${x((e.aiReason || e.prev || "").substring(0, 120))}</div></div>`).join("") : '<div class="brow" style="color:var(--muted)">No reply-needed emails yet</div>'}
-          </div>
-        </div>
-        <div class="bcard" style="margin-top:16px">
-          <div class="bcard-h">🧠 Deep work / follow-up</div>
-          <div class="bcard-b">
-            ${deepWorkList.length ? deepWorkList.map((e) => `<div class="brow"><div class="brow-from">${x(e.addr)}</div><div class="brow-subj">${x(e.subj)}</div><div class="brow-sum">Follow-up: ${e.aiFollowUp === true ? "Yes" : "No"} · Convert to task: ${e.aiConvertToTask === true ? "Yes" : "No"} · ${x((e.aiReason || e.prev || "").substring(0, 120))}</div></div>`).join("") : '<div class="brow" style="color:var(--muted)">No deep-work emails yet</div>'}
-          </div>
-        </div>
-        ${spam > 0 ? `
-        <div class="bcard" style="margin-top:16px">
-          <div class="bcard-h" style="color:var(--red)">⚠ Suggested for deletion</div>
-          <div class="bcard-b">
-            ${spamList.map((e) => `<div class="brow"><div class="brow-from" style="color:var(--red)">${x(e.addr)}</div><div class="brow-subj">${x(e.subj)}</div><div class="brow-sum" style="color:var(--red)">Server heuristics flagged this message as likely spam</div></div>`).join("")}
-            <div style="padding:12px 16px"><button class="btn btn-danger btn-sm" onclick="delSpam()">🗑 Delete all ${spam} spam emails</button></div>
-          </div>
-        </div>` : ""}
-      </div>
-      <div>
-        <div class="bcard">
-          <div class="bcard-h">Decision breakdown</div>
-          <div class="bcard-b">
-            <div class="crow"><span class="cat-dot" style="background:${catColor("action")}"></span>Action<span class="crow-n">${S.emails.filter((e) => (e.aiCategory || e.aiLabel) === "action").length}</span></div>
-            <div class="crow"><span class="cat-dot" style="background:${catColor("info")}"></span>Info<span class="crow-n">${S.emails.filter((e) => (e.aiCategory || e.aiLabel) === "info").length}</span></div>
-            <div class="crow"><span class="cat-dot" style="background:${catColor("promo")}"></span>Promo<span class="crow-n">${S.emails.filter((e) => (e.aiCategory || e.aiLabel) === "promo").length}</span></div>
-            <div class="crow"><span class="cat-dot" style="background:#4f8ef7"></span>Follow-up<span class="crow-n">${followUps}</span></div>
-            <div class="crow"><span class="cat-dot" style="background:#3ecf8e"></span>Deep work<span class="crow-n">${deepWork}</span></div>
-            <div class="crow"><span class="cat-dot" style="background:#f75f5f"></span>Spam<span class="crow-n">${spam}</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  if (!silent) {
-    toast("📰", "Brief generated");
-  }
-}
-
-function catColor(c) {
-  const aiMatch = S.aiLabels.find((label) => label.name === c);
-  if (aiMatch?.color) return aiMatch.color;
-  return { action: "#4f8ef7", info: "#3ecf8e", promo: "#f7c948", Work: "#3ecf8e", Finance: "#f7c948", Social: "#4f8ef7", Newsletters: "#7c5cfc", Travel: "#00c8dc", Spam: "#f75f5f", Unassigned: "#888888" }[c] || "#888";
-}
-
-async function delSpam() {
-  const ids = S.emails.filter((e) => e.spam).map((e) => e.id);
-  if (!ids.length) return;
-
-  try {
-    await api("/api/emails/delete", { cfg: S.cfg, uids: ids });
-    S.emails = S.emails.filter((e) => !e.spam);
-    updateCounts();
-    await genBrief();
-    renderList();
-    toast("🗑", `Deleted ${ids.length} spam emails`);
+    email.star = nextStar;
+    document.getElementById("btn-star").textContent = nextStar ? "unstar" : "star";
+    renderEmailList();
+    renderBrief();
+    toast(nextStar ? "starred" : "unstarred");
   } catch (error) {
-    toast("✗", error.message);
+    toast(error.message);
   }
 }
 
-async function createMailboxLabels() {
-  if (!S.connected) return toast("⚠", "Connect your mailbox first");
-  const labels = (S.aiLabels.length ? S.aiLabels : DECISION_LABELS).map((label) => label.name);
-
+async function deleteEmail() {
+  const email = getSelectedEmail();
+  if (!email) return;
   try {
-    const cfg = requireCfg();
-    const data = await api("/api/mailboxes/create-labels", {
-      cfg,
-      labels
-    });
-    const createdCount = (data.created || []).length;
-    toast("✓", createdCount ? `Created ${createdCount} mailbox label(s)` : "Mailbox labels already existed");
+    if (state.ui.connected) {
+      updateSyncProgress("Deleting Emails", 6, "Connecting to mailbox...", 0, 1, true);
+      await deleteEmailsWithProgress({ cfg: currentCfg(), uids: [email.id] });
+      updateSyncProgress("Deleting Emails", 100, "Deleted 1 email.", 1, 1, true);
+      hideSyncProgress();
+    }
+    state.emails = state.emails.filter((item) => item.id !== email.id);
+    clearSelection();
+    updateStatusBar();
+    renderBrief();
+    toast("email removed");
   } catch (error) {
-    toast("✗", error.message);
+    updateSyncProgress("Deleting Emails", 100, error.message || "Delete failed.", 0, 0, true);
+    hideSyncProgress(1800);
+    toast(error.message);
   }
 }
 
-function exportBrief() {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([document.getElementById("briefBody").innerText], { type: "text/plain" }));
-  a.download = "brief-" + new Date().toISOString().slice(0, 10) + ".txt";
-  a.click();
-  toast("↑", "Brief exported");
-}
-
-function updateCounts() {
-  const e = S.emails;
-  document.getElementById("cnt-all").textContent = e.length;
-  document.getElementById("cnt-star").textContent = e.filter((x) => x.star).length;
-  document.getElementById("cnt-unread").textContent = e.filter((x) => x.unread).length;
-  if (S.connected && S.cfg.email) {
-    document.getElementById("statusLabel").textContent = `${S.cfg.email} · ${e.length} emails`;
+async function testConnections() {
+  readSettingsFromForm();
+  const btn = document.getElementById("btn-test");
+  const result = document.getElementById("test-result");
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div> testing…`;
+  result.style.display = "none";
+  try {
+    const data = await api("/api/test-connection", currentCfg());
+    result.className = "connection-test-result result-ok";
+    result.textContent = data.message || "Email and AI look good.";
+    result.style.display = "block";
+    toast("connections look good");
+  } catch (error) {
+    result.className = "connection-test-result result-err";
+    result.textContent = error.message;
+    result.style.display = "block";
+    toast("connection check failed");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "test connections";
   }
 }
 
-function renderCategories() {
-  const root = document.getElementById("categoryList");
-  const title = document.getElementById("categoryLabel");
-  if (!root || !title) return;
+function getBriefSectionEmails(sectionKey) {
+  switch (sectionKey) {
+    case "do_first":
+      return state.emails.filter((email) => {
+        const d = emailDecision(email);
+        return d.urgency === "high" && d.category !== "promo";
+      });
+    case "reply_next":
+      return state.emails.filter((email) => {
+        const d = emailDecision(email);
+        return d.requires_reply && d.urgency !== "high" && d.category !== "promo";
+      });
+    case "can_wait":
+      return state.emails.filter((email) => {
+        const d = emailDecision(email);
+        return !d.requires_reply && !d.convert_to_task && d.category !== "promo";
+      });
+    case "ignore":
+      return state.emails.filter((email) => emailDecision(email).category === "promo");
+    case "learning":
+      return state.emails.filter((email) => emailDecision(email).category === "learning");
+    default:
+      return [];
+  }
+}
 
-  const assignedLabelNames = Array.from(new Set(S.emails.map((email) => email.aiCategory || email.aiLabel).filter(Boolean)));
-  const derivedLabels = assignedLabelNames.length
-    ? (S.aiLabels.length
-        ? S.aiLabels.filter((label) => assignedLabelNames.includes(label.name))
-        : assignedLabelNames.map((name, index) => ({
-            name,
-            description: "AI-generated category",
-            color: ["#4f8ef7", "#3ecf8e", "#f7c948", "#f75f5f", "#00c8dc", "#7c5cfc"][index % 6]
-          })))
-    : [];
-
-  if (derivedLabels.length) {
-    title.textContent = "AI Categories";
-    root.innerHTML = derivedLabels.map((label) => {
-      const count = S.emails.filter((email) => (email.aiCategory || email.aiLabel || email.cat) === label.name).length;
-      return `
-        <div class="label-item" onclick="goPanel('inbox',document.getElementById('nav-inbox'));setFilter('label:${jsq(label.name)}')">
-          <span class="label-swatch" style="background:${x(label.color || "#4f8ef7")}"></span>
-          <div class="label-meta">
-            <div class="label-name">${x(label.name)}</div>
-            <div class="label-desc">${x(label.description || "AI-generated decision category")}</div>
-          </div>
-          <span class="nav-count">${count}</span>
-        </div>
-      `;
-    }).join("");
+function openBriefSection(sectionKey) {
+  if (sectionKey.startsWith("custom:")) {
+    const categoryName = sectionKey.slice("custom:".length);
+    const emails = state.emails.filter((email) => emailDecision(email).rule.custom_category === categoryName);
+    if (!emails.length) {
+      toast("nothing in this section");
+      return;
+    }
+    switchView("inbox");
+    setFilter("later", document.querySelector('.chip[onclick*="later"]'));
+    setTimeout(() => selectEmail(emails[0].id), 30);
+    return;
+  }
+  const emails = getBriefSectionEmails(sectionKey);
+  if (!emails.length) {
+    toast("nothing in this section");
     return;
   }
 
-  title.textContent = "Categories";
-  const fallback = [
-    { name: "Work", color: "#3ecf8e" },
-    { name: "Finance", color: "#f7c948" },
-    { name: "Social", color: "#4f8ef7" },
-    { name: "Promotions", color: "#ff8a3d" },
-    { name: "Newsletters", color: "#7c5cfc" },
-    { name: "Travel", color: "#00c8dc" },
-    { name: "Spam", color: "#f75f5f" },
-    { name: "Other", color: "#7a7a86" }
-  ];
-  root.innerHTML = fallback.map((item) => {
-    const count = item.name === "Spam"
-      ? S.emails.filter((email) => email.spam).length
-      : S.emails.filter((email) => email.cat === item.name).length;
-    return `
-      <div class="label-item" onclick="goPanel('inbox',document.getElementById('nav-inbox'));setFilter('${jsq(item.name)}')">
-        <span class="label-swatch" style="background:${item.color}"></span>
-        <div class="label-meta">
-          <div class="label-name">${x(item.name)}</div>
-          <div class="label-desc">${item.name === "Spam" ? "Default spam detection" : "Default pre-AI category"}</div>
+  switchView("inbox");
+  if (sectionKey === "ignore") {
+    setFilter("ignored", document.querySelector('.chip[onclick*="ignored"]'));
+  } else if (sectionKey === "learning") {
+    setFilter("later", document.querySelector('.chip[onclick*="later"]'));
+  } else if (sectionKey === "can_wait") {
+    setFilter("later", document.querySelector('.chip[onclick*="later"]'));
+  } else {
+    setFilter("attention", document.querySelector('.chip[onclick*="attention"]'));
+  }
+
+  setTimeout(() => selectEmail(emails[0].id), 30);
+}
+
+async function deleteBriefSection(sectionKey) {
+  const emails = getBriefSectionEmails(sectionKey);
+  if (!emails.length) {
+    toast("nothing to delete");
+    return;
+  }
+  if (sectionKey !== "ignore") {
+    toast("bulk delete is only enabled for ignore");
+    return;
+  }
+
+  const uids = emails.map((email) => email.id);
+  try {
+    if (state.ui.connected) {
+      updateSyncProgress("Deleting Emails", 6, "Connecting to mailbox...", 0, uids.length, true);
+      await deleteEmailsWithProgress({ cfg: currentCfg(), uids });
+      updateSyncProgress("Deleting Emails", 100, `Deleted ${uids.length} emails.`, uids.length, uids.length, true);
+      hideSyncProgress();
+    }
+    state.emails = state.emails.filter((email) => !uids.includes(email.id));
+    if (state.ui.selectedEmail && uids.includes(state.ui.selectedEmail)) {
+      clearSelection();
+    }
+    updateStatusBar();
+    renderEmailList();
+    renderBrief();
+    renderCategoriesView();
+    renderRulesView();
+    toast(`${uids.length} promo emails removed`);
+  } catch (error) {
+    updateSyncProgress("Deleting Emails", 100, error.message || "Delete failed.", 0, 0, true);
+    hideSyncProgress(1800);
+    toast(error.message);
+  }
+}
+
+function renderBrief() {
+  const briefContent = document.getElementById("brief-content");
+  const briefHeader = document.querySelector(".brief-header");
+  const now = new Date();
+  const formattedDate = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  updatePrimarySyncButton();
+  const urgent = state.emails.filter((email) => emailDecision(email).urgency === "high" && emailDecision(email).category !== "promo");
+  const replies = state.emails.filter((email) => {
+    const d = emailDecision(email);
+    return d.requires_reply && d.category !== "promo";
+  });
+  const reviews = state.emails.filter((email) => emailDecision(email).convert_to_task);
+  const ignored = state.emails.filter((email) => emailDecision(email).category === "promo");
+  const learning = learningEmails();
+  const customSections = normalizeCustomCategories(state.settings.customCategories).map((category) => ({
+    key: `custom:${category.name}`,
+    label: category.name,
+    emails: state.emails.filter((email) => emailDecision(email).rule.custom_category === category.name)
+  })).filter((section) => section.emails.length);
+  document.getElementById("brief-stats").innerHTML = `
+    <div class="stat-card"><div class="stat-number">${state.emails.length}</div><div class="stat-label">total emails</div></div>
+    <div class="stat-card"><div class="stat-number red">${urgent.length}</div><div class="stat-label">today</div></div>
+    <div class="stat-card"><div class="stat-number green">${replies.length}</div><div class="stat-label">reply</div></div>
+    <div class="stat-card"><div class="stat-number purple">${reviews.length}</div><div class="stat-label">review</div></div>
+    <div class="stat-card"><div class="stat-number amber">${ignored.length}</div><div class="stat-label">ignore</div></div>
+    <div class="stat-card"><div class="stat-number purple">${learning.length}</div><div class="stat-label">learn</div></div>
+  `;
+
+  const summaryBox = document.getElementById("brief-summary");
+  const summaryText = document.getElementById("brief-summary-text");
+  if (!state.emails.length) {
+    briefContent.classList.add("is-empty");
+    summaryBox.style.display = "none";
+    briefHeader.innerHTML = "";
+    document.getElementById("brief-stats").innerHTML = "";
+    document.getElementById("brief-sections").innerHTML = `
+      <div class="brief-empty">
+        <div class="brief-empty-hero">
+          <div class="brief-empty-main">
+            <div class="brief-empty-kicker">daily brief</div>
+            <div class="brief-empty-title">Bring your inbox into focus.</div>
+            <div class="brief-empty-copy">Sync once and Luci will turn a noisy inbox into a calmer starting point for what needs a reply, what feels urgent, and what should become tracked work.</div>
+            <div class="brief-empty-actions">
+              <button class="btn primary" data-brief-action="sync-empty">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M14 8a6 6 0 1 1-1.5-3.9"></path>
+                  <path d="M14 1v4h-4" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+                Sync inbox
+              </button>
+              <div class="brief-empty-note">You only need one sync to generate your first brief.</div>
+            </div>
+            <div class="brief-empty-date">${formattedDate}</div>
+          </div>
+          <div class="brief-empty-side">
+            <div class="brief-value-title">What happens next</div>
+            <div class="brief-value-list">
+              <div class="brief-value-item">
+                <div class="brief-value-item-title">See what needs a reply</div>
+                <div class="brief-value-item-copy">Surface the threads where someone is actually waiting on you.</div>
+              </div>
+              <div class="brief-value-item">
+                <div class="brief-value-item-title">Surface urgent emails</div>
+                <div class="brief-value-item-copy">Pull time-sensitive messages forward before the rest of the inbox crowds them out.</div>
+              </div>
+              <div class="brief-value-item">
+                <div class="brief-value-item-title">Turn threads into tasks</div>
+                <div class="brief-value-item-copy">Separate real work from low-value reading so your next move is clearer.</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <span class="nav-count">${count}</span>
+      </div>
+    `;
+    return;
+  } else {
+    briefContent.classList.remove("is-empty");
+    briefHeader.innerHTML = `
+      <div class="brief-lead">We make decisions easier for you.</div>
+      <div class="brief-sublead">Start with what matters, save the useful reading for later, and let the noise fall away.</div>
+      <div class="brief-date" id="brief-date">${formattedDate}</div>
+    `;
+    summaryBox.style.display = "block";
+    summaryText.textContent = `Start with ${urgent.length} time-sensitive emails, then clear ${replies.length} messages waiting on you. ${learning.length} learning newsletters are ready to skim, and ${ignored.length} promos can safely wait.`;
+  }
+
+  const replyNextEmails = replies.filter((email) => emailDecision(email).urgency !== "high");
+  const canWaitEmails = state.emails.filter((email) => !emailDecision(email).requires_reply && !emailDecision(email).convert_to_task && emailDecision(email).category !== "promo");
+  const learningListMarkup = state.learning.loading
+    ? `<div class="learning-summary-item"><div class="learning-summary-source">learning brief</div><div class="learning-summary-text">Summarizing your newsletters…</div></div>`
+    : learning.map((email) => `
+        <div class="learning-summary-item" data-brief-action="select-email" data-email-id="${esc(email.id)}">
+          <div class="learning-summary-source">${esc(email.from || email.addr || "Unknown")}</div>
+          <div class="learning-summary-text">${esc(state.learning.summaries[email.uid] || `${email.subj || "Newsletter update"}${email.prev ? ` — ${email.prev}` : ""}`)}</div>
+        </div>
+      `).join("");
+  const sections = [
+    { key: "do_first", label: "do first", emails: urgent, total: urgent.length },
+    { key: "reply_next", label: "reply next", emails: replyNextEmails, total: replyNextEmails.length },
+    { key: "can_wait", label: "can wait", emails: canWaitEmails, total: canWaitEmails.length },
+    { key: "learning", label: "newsletters for learning", emails: learning, total: learning.length, customMarkup: `<div class="learning-summary-list">${learningListMarkup}</div>` },
+    { key: "ignore", label: "ignore", emails: ignored, total: ignored.length },
+    ...customSections.map((section) => ({ ...section, total: section.emails.length }))
+  ];
+  document.getElementById("brief-sections").innerHTML = `<div class="brief-sections-grid">${sections.map((section) => {
+    if (!section.emails.length) return "";
+    return `
+      <div class="brief-section">
+        <div class="brief-section-head">
+          <div class="brief-section-title">${esc(section.label)} · ${section.total}</div>
+          <div class="brief-section-actions">
+            <button class="brief-mini-btn" data-brief-action="open" data-brief-section="${esc(section.key)}">open all</button>
+            ${section.key === "ignore" ? `<button class="brief-mini-btn danger" data-brief-action="delete" data-brief-section="${esc(section.key)}">delete all</button>` : ""}
+          </div>
+        </div>
+        <div class="brief-section-list">
+        ${section.customMarkup || section.emails.map((email) => {
+          const d = emailDecision(email);
+          return `
+            <div class="brief-email-row" data-brief-action="select-email" data-email-id="${esc(email.id)}">
+              <div class="brief-email-from">${esc(email.from || email.addr || "Unknown")}</div>
+              <div class="brief-email-subject">${esc(email.subj || "(no subject)")}</div>
+              <div class="brief-email-badges">
+                <span class="badge ${d.category === "promo" ? "badge-promo" : d.category === "learning" ? "badge-learning" : d.requires_reply ? "badge-reply" : "badge-info"}">${esc(primaryActionLabel(d))}</span>
+                ${timingLabel(d) ? `<span class="badge ${d.urgency === "high" ? "badge-high" : "badge-info"}">${esc(timingLabel(d))}</span>` : ""}
+              </div>
+            </div>
+          `;
+        }).join("")}
+        </div>
+      </div>
+    `;
+  }).join("")}</div>`;
+}
+
+function setCategoryMode(mode) {
+  state.ui.categoryMode = mode;
+  renderCategoriesView();
+}
+
+function categoryGroupLabel(mode, value) {
+  if (mode === "finance") {
+    if (value === "personal_finance") return "finance · yours";
+    if (value === "finance") return "finance · general";
+    if (value === "other") return "not finance";
+  }
+  if (mode === "custom_category") {
+    if (value === "uncategorized") return "uncategorized";
+    return value;
+  }
+  return String(value || "unassigned").replace(/_/g, " ");
+}
+
+function renderCategoriesView() {
+  const root = document.getElementById("categories-groups");
+  const mode = state.ui.categoryMode;
+  if (!root) return;
+  if (!state.emails.length) {
+    root.innerHTML = `<div style="padding:24px 0;color:var(--text3);font-family:var(--font-s);font-style:italic">Analyze or sync some emails first.</div>`;
+    return;
+  }
+  const groups = {};
+  state.emails.forEach((email) => {
+    const rule = emailDecision(email).rule;
+    const key = rule[mode] || "unassigned";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(email);
+  });
+  root.innerHTML = Object.entries(groups).map(([groupName, emails]) => `
+    <div class="category-group">
+      <div class="category-group-head">
+        <div class="category-group-title">${esc(categoryGroupLabel(mode, groupName))}</div>
+        <div class="category-group-count">${emails.length} emails</div>
+      </div>
+      ${emails.map((email) => {
+        const rule = emailDecision(email).rule;
+        return `
+          <div class="category-email" onclick="switchView('inbox');setTimeout(() => selectEmail(${JSON.stringify(email.id)}), 30)">
+            <div class="category-email-main">
+              <div class="category-email-from">${esc(email.from || email.addr || "Unknown")}</div>
+              <div class="category-email-subj">${esc(email.subj || "(no subject)")}</div>
+            </div>
+            <div class="category-email-side">
+              <span class="badge badge-action">${esc(rule.action)}</span>
+              <span class="badge badge-score ${confidenceTone(rule.confidence)}">${Math.round(rule.confidence * 100)}%</span>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `).join("");
+}
+
+function renderRulesView() {
+  const root = document.getElementById("rules-list");
+  if (!root) return;
+  if (!state.emails.length) {
+    root.innerHTML = `
+      <div class="rule-card">
+        <div class="rule-card-head">
+          <div class="rule-card-title">Rule schema example</div>
+          <div class="rule-card-tags">
+            <span class="badge badge-action">${RULE_TEMPLATE.action}</span>
+            <span class="badge badge-score high">${Math.round(RULE_TEMPLATE.confidence * 100)}%</span>
+          </div>
+        </div>
+        <div class="rule-grid">
+          <div class="rule-box"><div class="rule-box-label">template</div><div class="rule-box-value">${esc(JSON.stringify(RULE_TEMPLATE, null, 2))}</div></div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+  root.innerHTML = state.emails.map((email) => {
+    const rule = emailDecision(email).rule;
+    return `
+      <div class="rule-card">
+        <div class="rule-card-head">
+          <div class="rule-card-title">${esc(email.subj || "(no subject)")}</div>
+          <div class="rule-card-tags">
+            <span class="badge badge-action">${esc(rule.action)}</span>
+            <span class="badge badge-score ${confidenceTone(rule.confidence)}">${Math.round(rule.confidence * 100)}%</span>
+          </div>
+        </div>
+        <div class="rule-grid">
+          <div class="rule-box"><div class="rule-box-label">type</div><div class="rule-box-value">${esc(rule.type)}</div></div>
+          <div class="rule-box"><div class="rule-box-label">priority</div><div class="rule-box-value">${esc(rule.priority)}</div></div>
+          <div class="rule-box"><div class="rule-box-label">action</div><div class="rule-box-value">${esc(rule.action)}</div></div>
+          <div class="rule-box"><div class="rule-box-label">urgency</div><div class="rule-box-value">${esc(rule.urgency)}</div></div>
+          <div class="rule-box"><div class="rule-box-label">key entities</div><div class="rule-box-value">sender: ${esc(rule.key_entities.sender)}\ntopic: ${esc(rule.key_entities.topic)}\ndeadline: ${esc(rule.key_entities.deadline)}</div></div>
+          <div class="rule-box"><div class="rule-box-label">reason</div><div class="rule-box-value">why_type: ${esc(rule.reason.why_type)}\nwhy_action: ${esc(rule.reason.why_action)}\nrisk_if_ignored: ${esc(rule.reason.risk_if_ignored)}</div></div>
+        </div>
       </div>
     `;
   }).join("");
 }
 
-function x(s) {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+async function bootHealthCheck() {
+  try {
+    const response = await fetch(API_BASE + "/api/health");
+    if (response.ok) {
+      if (hasEmailConfig()) state.ui.connected = true;
+      updateStatusBar();
+    }
+  } catch (error) {}
 }
 
-function jsq(s) {
-  return String(s ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+function getVal(id) {
+  return document.getElementById(id)?.value || "";
 }
 
-function progress(p) {
-  const b = document.getElementById("pbar");
-  b.style.width = p + "%";
-  if (p >= 100) setTimeout(() => { b.style.width = "0"; }, 400);
+function setVal(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value ?? "";
 }
 
-let _tt;
-function toast(icon, text) {
-  document.getElementById("toastIcon").textContent = icon;
-  document.getElementById("toastText").textContent = text;
+let toastTimer;
+function toast(msg) {
   const el = document.getElementById("toast");
+  el.textContent = msg;
   el.classList.add("show");
-  clearTimeout(_tt);
-  _tt = setTimeout(() => el.classList.remove("show"), 3200);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
 }
 
-document.getElementById("delModal").addEventListener("click", (e) => {
-  if (e.target === e.currentTarget) closeModal();
+function bindBriefInteractions() {
+  const root = document.getElementById("brief-sections");
+  if (!root || root.dataset.bound === "true") return;
+  root.dataset.bound = "true";
+  root.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-brief-action]");
+    if (!trigger) return;
+    const action = trigger.dataset.briefAction;
+    const sectionKey = trigger.dataset.briefSection || "";
+    const emailId = trigger.dataset.emailId;
+
+    if (action === "open") {
+      openBriefSection(sectionKey);
+      return;
+    }
+    if (action === "delete") {
+      deleteBriefSection(sectionKey);
+      return;
+    }
+    if (action === "sync-empty") {
+      syncEmails();
+      return;
+    }
+    if (action === "select-email" && emailId) {
+      switchView("inbox");
+      setTimeout(() => selectEmail(Number(emailId)), 30);
+    }
+  });
+}
+
+Object.assign(window, {
+  switchView,
+  syncEmails,
+  clearSelection,
+  setFilter,
+  setCategoryMode,
+  openBriefSection,
+  deleteBriefSection,
+  selectEmail,
+  selectRelativeEmail,
+  activateEmailFromKeyboard,
+  toggleWhy,
+  toggleStarSelected,
+  summarizeEmail,
+  draftReplySelected,
+  createTaskSelected,
+  deleteEmail,
+  testConnections,
+  saveSettings,
+  applyPreset,
+  applyAIPreset
 });
+
+loadSettings();
+bindBriefInteractions();
+document.addEventListener("keydown", handleGlobalKeydown);
+bootHealthCheck();
 </script>
 </body>
 </html>

@@ -4,7 +4,10 @@
   "private": false,
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "setup": "bash ./scripts/setup.sh",
+    "easy:start": "bash ./scripts/launch-luci.sh"
   },
   "dependencies": {
     "express": "^4.21.2",
