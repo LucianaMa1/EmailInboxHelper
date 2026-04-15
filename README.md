@@ -1,7 +1,7 @@
 
 # Luci's Inbox Helper
 
-Luci turns a noisy inbox into a calmer decision list. Instead of only summarizing email, it helps you decide what needs a reply, what is urgent, what should become a task, and what can wait.
+Luci‘s Inbox Helper turns up to 10 noisy inboxes into a calmer decision list. Instead of only summarizing email, it helps you decide what needs a reply, what is urgent, what should become a task, and what can wait.
 
 <img width="1491" height="840" alt="image" src="https://github.com/user-attachments/assets/ec04e796-bb31-4cc5-8a91-e3de4119e374" />
 
