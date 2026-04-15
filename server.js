@@ -17,7 +17,8 @@ const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 3030);
 const LOCAL_ORIGINS = new Set([
   `http://localhost:${PORT}`,
-  `http://127.0.0.1:${PORT}`
+  `http://127.0.0.1:${PORT}`,
+  "null"
 ]);
 
 export function isLoopbackAddress(value = "") {

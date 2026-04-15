@@ -100,6 +100,62 @@ Current priority checklist for this repo:
 - Large inboxes may feel slow because parsing happens locally in one Node process
 - This repo is optimized for one local user, not teams or public deployment
 
+## Customizing The Decision Rules
+
+If Luci's default triage logic does not fit your inbox, the main file to customize is:
+
+- `decision-rules.js`
+
+That file contains the shared heuristics for category, urgency, reply expectation, task conversion, sender importance, confidence, finance grouping, and custom category inference.
+
+### What to customize first
+
+If you want Luci to feel like it was built for your inbox, these are the most important areas to edit inside `decision-rules.js`:
+
+- `inferSenderImportance(email)`
+  This is where the current VIP logic lives. Right now it uses hardcoded assumptions and example names. Replace that with your own important contacts, domains, or rules. A better version might prioritize your family members, manager, clients, school contacts, or your most frequent correspondents.
+- `inferConfidence(email, decision, rule)`
+  This controls how confident the system feels about a classification. If you want Luci to say "needs review" or "unclear" when confidence is low, this is the right place to start. Today the app always forces a decision, so this function is the easiest place to add safer fallback behavior.
+- `PROMO_PATTERNS`, `PROMO_SENDER_PATTERNS`, `ACTION_PATTERNS`, `TRANSACTIONAL_PATTERNS`, `EDITORIAL_*`, `HIGH_VALUE_INFO_PATTERNS`
+  These keyword lists define most of the triage behavior. If your inbox is not English-first, not business-oriented, or has important domain-specific language, expand these lists for your own use case.
+- `classifyEmailDecision(email)`
+  This is the main decision engine. If you want to separate global baseline rules from your personal rules, this is the best function to restructure while keeping the overall architecture intact.
+- `buildDecisionRule(email, decision)`
+  This is where Luci turns a decision into a structured explanation. If you want multi-label output like `promo + high value` or `learning + finance`, this is one of the main places to extend the rule shape.
+- `inferCustomCategory(parts)` and the custom category helpers
+  If you want stronger user-specific buckets, this is the place to grow your own category layer.
+
+### Suggested customization projects
+
+Without changing the overall architecture, here are the safest and highest-value improvements contributors can make by editing `decision-rules.js`:
+
+- Replace hardcoded people and importance assumptions.
+  Edit `inferSenderImportance(email)` so important senders come from your own contacts, known domains, or frequent correspondents instead of baked-in example names.
+- Add confidence and fallback behavior.
+  Edit `inferConfidence(...)` and `classifyEmailDecision(...)` to introduce a low-confidence outcome such as `unclear`, `needs review`, or `manual triage`.
+- Separate global rules from user rules.
+  Keep the top-level shared pattern lists small, then add a clearly marked personal layer in `decision-rules.js` for your own allowlists, blocklists, important senders, and learned overrides.
+- Expand the label model.
+  If one category is too rigid, extend `classifyEmailDecision(...)` and `buildDecisionRule(...)` so an email can carry multiple signals such as `transactional + urgent` or `learning + finance`.
+- Improve language support.
+  Add translated keywords, multilingual normalization, and language-specific pattern lists near the top of `decision-rules.js`.
+- Build evaluation data.
+  Add more tests under `test/`, especially real labeled inbox examples from different inbox styles. This is the best way to tell whether your rule edits actually improve behavior.
+- Add negative-feedback loops.
+  If you want Luci to remember reclassifications, start by extending the rule inputs and tests so user corrections can override default heuristics the next time a similar message appears.
+
+### Recommended workflow for contributors
+
+- Update `decision-rules.js`
+- Add or edit tests in `test/decision-rules.test.js`
+- Run `npm test`
+- Try a few real inbox examples locally
+- Keep changes small enough that you can explain which inbox style they help
+
+### Important note
+
+The default rule set is a baseline, not a universal truth. If you are adapting Luci for a school inbox, a family inbox, a recruiting inbox, a non-English inbox, or a highly regulated domain, you should expect to customize `decision-rules.js` to match your own workflow.
+
 ## Project Files
 
 - `server.js`: local API, IMAP sync, AI calls

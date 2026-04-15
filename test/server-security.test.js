@@ -86,6 +86,23 @@ test("middleware rejects unexpected origins even from loopback", () => {
   assert.match(res.body.error, /localhost/i);
 });
 
+test("middleware allows local file launches with null origin", () => {
+  const req = {
+    headers: { origin: "null" },
+    socket: { remoteAddress: "127.0.0.1" },
+    method: "GET"
+  };
+  const res = createMockResponse();
+  let nextCalled = false;
+
+  localOnlyMiddleware(req, res, () => {
+    nextCalled = true;
+  });
+
+  assert.equal(nextCalled, true);
+  assert.equal(res.headers["access-control-allow-origin"], "null");
+});
+
 test("middleware rejects non-loopback requests", () => {
   const req = {
     headers: {},

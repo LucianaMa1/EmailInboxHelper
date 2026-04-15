@@ -998,6 +998,7 @@ import {
 
 const API_BASE = location.protocol === "file:" ? "http://localhost:3030" : "";
 const SETTINGS_STORAGE_KEY = "luci-settings-v3";
+const SESSION_SECRETS_STORAGE_KEY = "luci-session-secrets-v1";
 const LEGACY_SETTINGS_STORAGE_KEYS = ["luci-settings-v2"];
 const AI_HINTS = {
   openai: 'Use an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a>.',
@@ -1142,6 +1143,45 @@ function sanitizePersistedSettings(value = {}) {
     learningWhitelist: String(saved.learningWhitelist || ""),
     customCategories: normalizeCustomCategories(saved.customCategories)
   };
+}
+
+function sanitizeSessionSecrets(value = {}) {
+  const saved = value && typeof value === "object" ? value : {};
+  return {
+    emailAccounts: normalizeEmailAccounts(saved.emailAccounts, {}).map((account) => ({
+      id: String(account.id || ""),
+      pass: String(account.pass || "")
+    })).filter((account) => account.id),
+    aiKey: String(saved.aiKey || "")
+  };
+}
+
+function loadSessionSecrets() {
+  try {
+    return sanitizeSessionSecrets(JSON.parse(sessionStorage.getItem(SESSION_SECRETS_STORAGE_KEY) || "{}"));
+  } catch (error) {
+    return { emailAccounts: [], aiKey: "" };
+  }
+}
+
+function saveSessionSecrets() {
+  const payload = {
+    emailAccounts: normalizeEmailAccounts(state.settings.emailAccounts, {}).map((account) => ({
+      id: account.id,
+      pass: account.pass
+    })),
+    aiKey: state.settings.aiKey || ""
+  };
+  sessionStorage.setItem(SESSION_SECRETS_STORAGE_KEY, JSON.stringify(sanitizeSessionSecrets(payload)));
+}
+
+function mergeSessionSecretsIntoSettings(secrets = loadSessionSecrets()) {
+  const passwordsById = new Map((secrets.emailAccounts || []).map((account) => [account.id, account.pass]));
+  state.settings.emailAccounts = normalizeEmailAccounts(state.settings.emailAccounts, state.settings).map((account) => ({
+    ...account,
+    pass: passwordsById.get(account.id) || account.pass || ""
+  }));
+  state.settings.aiKey = String(secrets.aiKey || state.settings.aiKey || "");
 }
 
 function cleanEmailTextForDisplay(value = "") {
@@ -1343,8 +1383,25 @@ function loadSettings() {
       || "{}";
     const saved = JSON.parse(raw);
     state.settings = { ...state.settings, ...sanitizePersistedSettings(saved) };
+    const legacySecrets = {
+      emailAccounts: normalizeEmailAccounts(saved.emailAccounts, {}).map((account) => ({
+        id: account.id,
+        pass: account.pass
+      })),
+      aiKey: String(saved.aiKey || "")
+    };
+    const existingSessionSecrets = loadSessionSecrets();
+    const shouldHydrateSession = !existingSessionSecrets.aiKey
+      && !(existingSessionSecrets.emailAccounts || []).some((account) => account.pass);
+    if (shouldHydrateSession) {
+      sessionStorage.setItem(
+        SESSION_SECRETS_STORAGE_KEY,
+        JSON.stringify(sanitizeSessionSecrets(legacySecrets))
+      );
+    }
   } catch (error) {}
   LEGACY_SETTINGS_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+  mergeSessionSecretsIntoSettings();
   saveToStorage();
   state.settings.emailAccounts = normalizeEmailAccounts(state.settings.emailAccounts, state.settings);
   applySettingsToForm();
@@ -1360,6 +1417,7 @@ function loadSettings() {
 
 function saveToStorage() {
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(sanitizePersistedSettings(state.settings)));
+  saveSessionSecrets();
 }
 
 function normalizeEmailAccounts(values = [], fallback = {}) {
