@@ -3,7 +3,7 @@
 
 Luci turns a noisy inbox into a calmer decision list. Instead of only summarizing email, it helps you decide what needs a reply, what is urgent, what should become a task, and what can wait.
 
-<img width="400" height="240" alt="0415 (1)" src="https://github.com/user-attachments/assets/11a0e3ba-3b56-4243-a595-c3f0c2878ffa" />
+<img width="800" height="480" alt="0415 (1)" src="https://github.com/user-attachments/assets/11a0e3ba-3b56-4243-a595-c3f0c2878ffa" />
 
 ## Quick start
 
