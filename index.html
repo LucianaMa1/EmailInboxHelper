@@ -844,6 +844,7 @@ body {
                 <button class="btn" onclick="toggleStarSelected()" id="btn-star">star</button>
                 <button class="btn" onclick="summarizeEmail()" id="btn-summarize">summarize</button>
                 <button class="btn" onclick="draftReplySelected()" id="btn-draft">draft reply</button>
+                <button class="btn" onclick="openOriginalEmail()" id="btn-open-original">open in gmail</button>
                 <button class="btn" onclick="createTaskSelected()">create task</button>
                 <button class="btn danger" onclick="deleteEmail()">delete</button>
                 <div class="detail-shortcuts">↑/↓ or j/k move · Enter open · x delete · Esc close · s star</div>
@@ -1663,6 +1664,33 @@ function currentCfgForEmail(email) {
   return account ? currentCfgForAccount(account) : null;
 }
 
+function currentAccountForEmail(email) {
+  return findAccountById(email?.accountId);
+}
+
+function isGmailAccount(email) {
+  const account = currentAccountForEmail(email);
+  if (account?.prov === "gmail") return true;
+  const accountEmail = String(email?.accountEmail || account?.email || "").toLowerCase();
+  return accountEmail.endsWith("@gmail.com") || accountEmail.endsWith("@googlemail.com");
+}
+
+function gmailSearchUrlForEmail(email) {
+  const parts = [];
+  const fromAddress = String(email?.addr || "").trim();
+  const subject = String(email?.subj || "").trim();
+
+  if (fromAddress) {
+    parts.push(`from:${fromAddress}`);
+  }
+  if (subject) {
+    parts.push(`subject:"${subject.replace(/"/g, "")}"`);
+  }
+
+  const query = parts.filter(Boolean).join(" ");
+  return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(query || subject || fromAddress || "in:inbox")}`;
+}
+
 function currentLearningWhitelist() {
   return String(state.settings.learningWhitelist || "")
     .split(/\n+/)
@@ -2114,6 +2142,11 @@ function selectEmail(id) {
   document.getElementById("detail-date").textContent = email.date || "";
   document.getElementById("detail-body").textContent = email.body || email.prev || "";
   document.getElementById("btn-star").textContent = email.star ? "unstar" : "star";
+  const openOriginalBtn = document.getElementById("btn-open-original");
+  if (openOriginalBtn) {
+    openOriginalBtn.disabled = !isGmailAccount(email);
+    openOriginalBtn.textContent = isGmailAccount(email) ? "open in gmail" : "gmail only";
+  }
   renderDecisionCards(email);
   renderSummaryAndDraft(email);
   renderWhyThis(email);
@@ -2148,6 +2181,20 @@ function toggleWhy() {
   const label = document.getElementById("why-toggle-label");
   const isHidden = panel.classList.toggle("hidden");
   label.textContent = isHidden ? "show" : "hide";
+}
+
+function openOriginalEmail() {
+  const email = getSelectedEmail();
+  if (!email) {
+    toast("select an email first");
+    return;
+  }
+  if (!isGmailAccount(email)) {
+    toast("open in gmail is only available for gmail accounts right now");
+    return;
+  }
+
+  window.open(gmailSearchUrlForEmail(email), "_blank", "noopener,noreferrer");
 }
 
 function renderSummaryAndDraft(email) {
