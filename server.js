@@ -115,6 +115,45 @@ function formatDate(value) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function stripHtml(value = "") {
+  return String(value || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]+>/g, " ");
+}
+
+function cleanNewsletterText(value = "") {
+  return stripHtml(String(value || ""))
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, "$1")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\bwww\.\S+/gi, " ")
+    .replace(/<!doctype html>/gi, " ")
+    .replace(/view this post on the web[\s\S]*/gi, " ")
+    .replace(/unsubscribe[\s\S]*/gi, " ")
+    .replace(/manage preferences[\s\S]*/gi, " ")
+    .replace(/privacy policy[\s\S]*/gi, " ")
+    .replace(/terms of service[\s\S]*/gi, " ")
+    .replace(/display images to show real-time content/gi, " ")
+    .replace(/[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\u3164\ufeff\uffa0]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildCleanPreview(text = "", maxLength = 220) {
+  const cleaned = cleanNewsletterText(text);
+  return cleaned.slice(0, maxLength).trim() || "(No preview available)";
+}
+
+function summarizeLearningEmailLocally(email = {}) {
+  const subject = String(email.subject || email.subj || "").trim();
+  const preview = cleanNewsletterText(String(email.preview || email.prev || email.body || ""))
+    .replace(new RegExp(`^${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[—:-]?\\s*`, "i"), "")
+    .trim();
+  const combined = [subject, preview].filter(Boolean).join(". ");
+  return combined.slice(0, 180).trim() || "Newsletter update worth skimming later.";
+}
+
 function categorizeEmail({ from, subject, text }) {
   const haystack = `${from} ${subject} ${text}`.toLowerCase();
   const rules = [
@@ -436,10 +475,11 @@ async function fetchEmails(cfg) {
         const from = fromValue?.name || fromValue?.address || message.envelope?.from?.[0]?.name || message.envelope?.from?.[0]?.address || "Unknown sender";
         const addr = fromValue?.address || message.envelope?.from?.[0]?.address || "";
         const subj = parsed.subject || message.envelope?.subject || "(No subject)";
-        const text = (parsed.text || parsed.html || "").replace(/\s+/g, " ").trim();
-        const prev = text.slice(0, 220) || "(No preview available)";
-        const cat = categorizeEmail({ from, subject: subj, text });
-        const spam = isSpam({ from, subject: subj, text });
+        const rawText = parsed.text || parsed.html || "";
+        const cleanedText = cleanNewsletterText(rawText);
+        const prev = buildCleanPreview(rawText, 220);
+        const cat = categorizeEmail({ from, subject: subj, text: cleanedText || rawText });
+        const spam = isSpam({ from, subject: subj, text: cleanedText || rawText });
 
         emails.push({
           id: message.uid,
@@ -448,7 +488,7 @@ async function fetchEmails(cfg) {
           addr,
           subj,
           prev,
-          body: (parsed.text || prev).trim(),
+          body: (cleanedText || prev).trim(),
           date: formatDate(message.internalDate || message.envelope?.date),
           isoDate: new Date(message.internalDate || message.envelope?.date || Date.now()).toISOString(),
           cat,
@@ -651,6 +691,73 @@ app.post("/api/ai/brief", async (req, res) => {
     });
 
     res.json({ ok: true, brief });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/ai/learning-brief", async (req, res) => {
+  const { apiKey, model, provider, emails } = req.body || {};
+
+  try {
+    if (!Array.isArray(emails) || !emails.length) {
+      throw new Error("No learning emails available for summary.");
+    }
+
+    const payload = emails.slice(0, 24).map((email) => ({
+      uid: String(email.uid),
+      from: email.from,
+      subject: email.subj,
+      preview: buildCleanPreview(email.prev || email.body || "", 180),
+      body: cleanNewsletterText(String(email.body || "")).slice(0, 1200)
+    }));
+
+    if (!apiKey) {
+      return res.json({
+        ok: true,
+        summaries: payload.map((email) => ({
+          uid: email.uid,
+          summary: summarizeLearningEmailLocally(email)
+        })),
+        fallback: true
+      });
+    }
+
+    const content = await callAI({
+      provider,
+      apiKey,
+      model,
+      maxTokens: 1000,
+      responseFormat: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You summarize learning-oriented newsletters for a busy reader.",
+            "Return strict JSON with shape: {\"summaries\":[{\"uid\":\"abc\",\"summary\":\"one sentence\"}]}",
+            "Rules:",
+            "- Write exactly one concise sentence per email.",
+            "- Focus on what the newsletter teaches, announces, or covers.",
+            "- Do not mention links, unsubscribe text, HTML fragments, or tracking boilerplate.",
+            "- Keep each summary under 24 words."
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload, null, 2)
+        }
+      ]
+    });
+
+    const parsed = JSON.parse(extractJsonBlock(content));
+    const summaries = (Array.isArray(parsed.summaries) ? parsed.summaries : [])
+      .map((item) => ({
+        uid: String(item.uid),
+        summary: String(item.summary || "").trim()
+      }))
+      .filter((item) => item.uid && item.summary);
+
+    res.json({ ok: true, summaries });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }

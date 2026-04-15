@@ -964,14 +964,6 @@ body {
             </div>
           </div>
 
-          <div class="settings-section">
-            <div class="settings-section-title">04 · custom categories</div>
-            <div class="custom-categories-editor" id="custom-categories-editor"></div>
-            <div class="settings-actions" style="padding-top:10px">
-              <button class="btn" type="button" onclick="addCustomCategory()">add category</button>
-            </div>
-          </div>
-
           <div class="settings-actions">
             <button class="btn" onclick="testConnections()" id="btn-test">test connections</button>
             <button class="btn primary" onclick="saveSettings()">save settings</button>
@@ -1129,6 +1121,35 @@ function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
+function cleanLearningSummaryText(value = "") {
+  return String(value || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, "$1")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\bwww\.\S+/gi, " ")
+    .replace(/<!doctype html>/gi, " ")
+    .replace(/view this post on the web[\s\S]*/gi, " ")
+    .replace(/unsubscribe[\s\S]*/gi, " ")
+    .replace(/manage preferences[\s\S]*/gi, " ")
+    .replace(/privacy policy[\s\S]*/gi, " ")
+    .replace(/terms of service[\s\S]*/gi, " ")
+    .replace(/display images to show real-time content/gi, " ")
+    .replace(/[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\u3164\ufeff\uffa0]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildLearningFallbackSummary(email = {}) {
+  const subject = String(email.subj || email.subject || "Newsletter update").trim();
+  const cleanedPreview = cleanLearningSummaryText(String(email.prev || email.body || ""))
+    .replace(new RegExp(`^${subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[—:-]?\\s*`, "i"), "")
+    .trim();
+  return [subject, cleanedPreview].filter(Boolean).join(". ").slice(0, 180).trim();
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -1206,6 +1227,29 @@ async function syncEmailsWithProgress(payload, onProgress = null) {
     throw new Error("Cannot reach the local Luci server. Start `npm start` and open http://localhost:3030/");
   }
 
+  if (response.status === 404) {
+    const fallback = await api("/api/emails/sync", payload || {});
+    if (onProgress) {
+      onProgress({
+        type: "progress",
+        progress: 100,
+        message: "Synced mailbox.",
+        completed: Array.isArray(fallback.emails) ? fallback.emails.length : 0,
+        total: Array.isArray(fallback.emails) ? fallback.emails.length : 0
+      });
+    } else {
+      updateSyncProgress(
+        "Mailbox Sync",
+        100,
+        "Synced mailbox.",
+        Array.isArray(fallback.emails) ? fallback.emails.length : 0,
+        Array.isArray(fallback.emails) ? fallback.emails.length : 0,
+        true
+      );
+    }
+    return fallback;
+  }
+
   if (!response.ok || !response.body) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.error || `Request failed with ${response.status}`);
@@ -1263,6 +1307,14 @@ async function deleteEmailsWithProgress(payload) {
     });
   } catch (error) {
     throw new Error("Cannot reach the local Luci server. Start `npm start` and open http://localhost:3030/");
+  }
+
+  if (response.status === 404) {
+    const fallback = await api("/api/emails/delete", payload || {});
+    return {
+      ok: true,
+      deleted: Number(fallback.deleted || 0)
+    };
   }
 
   if (!response.ok || !response.body) {
@@ -1913,7 +1965,7 @@ async function ensureLearningSummaries() {
   } catch (error) {
     state.learning.summaries = Object.fromEntries(emails.map((email) => [
       email.uid,
-      `${email.subj || "Newsletter update"}${email.prev ? ` — ${email.prev}` : ""}`.slice(0, 180)
+      buildLearningFallbackSummary(email) || "Newsletter update worth skimming later."
     ]));
     state.learning.signature = signature;
   } finally {
