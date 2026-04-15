@@ -9,8 +9,8 @@ Luci turns a noisy inbox into a calmer decision list. Instead of only summarizin
 Clone the repo and start Luci:
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/EmailInboxHelper-repo.git
-cd EmailInboxHelper-repo
+git clone https://github.com/LucianaMa1/EmailInboxHelper.git
+cd EmailInboxHelper
 npm run easy:start
 ```
 
