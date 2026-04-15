@@ -386,6 +386,9 @@ body {
 #brief-content { padding: 28px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; width: 100%; }
 #brief-content.is-empty { justify-content: center; }
 .brief-header { margin-bottom: 22px; }
+.brief-header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.brief-header-copy { min-width: 0; flex: 1; }
+.brief-sync-btn { flex-shrink: 0; }
 .brief-lead { font-family: var(--font-s); font-size: 24px; color: var(--text); font-style: italic; margin-bottom: 6px; }
 .brief-sublead { font-size: 13px; color: var(--text2); font-family: var(--font-s); line-height: 1.7; margin-bottom: 6px; }
 .brief-date { font-size: 11.5px; color: var(--text3); font-family: var(--font-m); font-weight: 300; }
@@ -475,6 +478,38 @@ body {
 .brief-email-subject { font-size: 13px; color: var(--text2); min-width: 0; font-family: var(--font-s); font-style: italic; overflow-wrap: anywhere; }
 .brief-email-badges { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
 .custom-categories-editor { display: flex; flex-direction: column; gap: 12px; }
+.email-accounts-editor { display: flex; flex-direction: column; gap: 12px; }
+.email-account-card {
+  background: rgba(250,248,245,0.88);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+.email-account-card.empty-card {
+  border-style: dashed;
+  background: rgba(250,248,245,0.56);
+  color: var(--text3);
+}
+.email-account-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.email-account-title {
+  font-size: 10px;
+  color: var(--text3);
+  font-family: var(--font-m);
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+.email-account-hint {
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.6;
+}
 .custom-category-card {
   background: rgba(250,248,245,0.88);
   border: 1px solid var(--border);
@@ -536,8 +571,8 @@ body {
 .category-email-subj { font-size: 13px; color: var(--text2); font-family: var(--font-s); font-style: italic; }
 .category-email-side { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
-#settings-view-wrap { overflow: hidden; }
-#settings-view { flex: 1; overflow-y: auto; padding: 28px; max-width: 880px; }
+#settings-view-wrap { overflow: hidden; position: relative; z-index: 3; }
+#settings-view { flex: 1; overflow-y: auto; padding: 28px; max-width: 880px; position: relative; z-index: 3; pointer-events: auto; }
 .settings-title { font-family: var(--font-s); font-size: 24px; margin-bottom: 22px; font-style: italic; color: var(--text); }
 .setup-steps { display: flex; gap: 10px; margin-bottom: 26px; flex-wrap: wrap; }
 .step-card {
@@ -587,6 +622,9 @@ body {
   font-family: var(--font-b);
   outline: none;
   transition: border-color 0.14s ease, background 0.14s ease;
+  position: relative;
+  z-index: 4;
+  pointer-events: auto;
 }
 .form-input:focus,
 .form-select:focus,
@@ -692,6 +730,8 @@ body {
   .brief-empty-main { padding: 30px 24px; min-height: auto; }
   .brief-empty-side { padding: 22px 20px; }
   .brief-empty-title { max-width: none; }
+  .brief-header-top { flex-direction: column; align-items: stretch; }
+  .brief-sync-btn { align-self: flex-start; }
   .brief-email-row { grid-template-columns: 1fr; gap: 6px; }
   .brief-email-from { min-width: 0; }
   .brief-email-badges { justify-content: flex-start; }
@@ -880,48 +920,10 @@ body {
 
           <div class="settings-section">
             <div class="settings-section-title">01 · email connection</div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Provider</label>
-                <select class="form-select" id="email-preset" onchange="applyPreset(this.value)">
-                  <option value="">Custom IMAP</option>
-                  <option value="gmail">Gmail</option>
-                  <option value="outlook">Outlook</option>
-                  <option value="yahoo">Yahoo</option>
-                  <option value="qq">QQ Mail</option>
-                  <option value="163">163 Mail</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Email address</label>
-                <input class="form-input" id="email-addr" type="email" placeholder="you@example.com">
-              </div>
+            <div class="email-accounts-editor" id="email-accounts-editor"></div>
+            <div class="settings-actions" style="padding-top:10px">
+              <button class="btn" type="button" onclick="addEmailAccount()">add email</button>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">IMAP host</label>
-                <input class="form-input" id="imap-host" placeholder="imap.gmail.com">
-              </div>
-              <div class="form-group" style="max-width:90px">
-                <label class="form-label">Port</label>
-                <input class="form-input" id="imap-port" type="number" value="993">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Password / App password</label>
-                <input class="form-input" id="imap-pass" type="password" placeholder="••••••••">
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Folder</label>
-                <input class="form-input" id="imap-folder" value="INBOX">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Sync size (max)</label>
-                <input class="form-input" id="sync-size" type="number" value="50" min="1" max="500">
-              </div>
-            </div>
-            <div class="form-help" id="provider-help"></div>
           </div>
 
           <div class="settings-section">
@@ -956,7 +958,7 @@ body {
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Author whitelist</label>
-                <textarea class="form-input" id="learning-whitelist" rows="6" placeholder="One author or newsletter per line&#10;Fintech Brainfood&#10;Simon Taylor&#10;Payments Strategy Breakdown"></textarea>
+                <textarea class="form-textarea" id="learning-whitelist" rows="6" placeholder="One author or newsletter per line&#10;Fintech Brainfood&#10;Simon Taylor&#10;Payments Strategy Breakdown"></textarea>
                 <div class="form-help">Anything listed here will be treated as a learning newsletter source unless it clearly looks like promo, action, or transactional mail.</div>
               </div>
             </div>
@@ -1079,6 +1081,7 @@ const state = {
     signature: ""
   },
   settings: {
+    emailAccounts: [],
     prov: "",
     email: "",
     pass: "",
@@ -1108,6 +1111,14 @@ const state = {
     }
   }
 };
+
+const MAX_EMAIL_ACCOUNTS = 10;
+let emailAccountCounter = 0;
+
+function createEmailAccountId() {
+  emailAccountCounter += 1;
+  return `email-${Date.now()}-${emailAccountCounter}`;
+}
 
 function esc(value) {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -1178,7 +1189,7 @@ function hideSyncProgress(delay = 800) {
   }, delay);
 }
 
-async function syncEmailsWithProgress(payload) {
+async function syncEmailsWithProgress(payload, onProgress = null) {
   let response;
   try {
     response = await fetch(API_BASE + "/api/emails/sync-progress", {
@@ -1211,7 +1222,11 @@ async function syncEmailsWithProgress(payload) {
       if (!line.trim()) continue;
       const event = JSON.parse(line);
       if (event.type === "progress") {
-        updateSyncProgress("Mailbox Sync", event.progress, event.message, event.completed, event.total, true);
+        if (onProgress) {
+          onProgress(event);
+        } else {
+          updateSyncProgress("Mailbox Sync", event.progress, event.message, event.completed, event.total, true);
+        }
       } else if (event.type === "result") {
         result = event;
       } else if (event.type === "error") {
@@ -1293,6 +1308,7 @@ function loadSettings() {
     const saved = JSON.parse(localStorage.getItem("luci-settings-v2") || "{}");
     state.settings = { ...state.settings, ...saved };
   } catch (error) {}
+  state.settings.emailAccounts = normalizeEmailAccounts(state.settings.emailAccounts, state.settings);
   applySettingsToForm();
   updateStepCards();
   updateStatusBar();
@@ -1306,6 +1322,160 @@ function loadSettings() {
 
 function saveToStorage() {
   localStorage.setItem("luci-settings-v2", JSON.stringify(state.settings));
+}
+
+function normalizeEmailAccounts(values = [], fallback = {}) {
+  const source = Array.isArray(values) ? values : [];
+  const normalized = source
+    .map((item, index) => ({
+      id: String(item?.id || createEmailAccountId() || `email-fallback-${index}`),
+      prov: String(item?.prov || "").trim(),
+      email: String(item?.email || "").trim(),
+      pass: String(item?.pass || ""),
+      folder: String(item?.folder || "INBOX").trim() || "INBOX",
+      count: Math.max(1, Math.min(500, Number(item?.count || 50) || 50)),
+      imapHost: String(item?.imapHost || "").trim(),
+      imapPort: Number(item?.imapPort || 993) || 993
+    }))
+    .slice(0, MAX_EMAIL_ACCOUNTS);
+
+  if (normalized.length) return normalized;
+
+  if (fallback?.email || fallback?.pass || fallback?.prov || fallback?.imapHost) {
+    return [{
+      id: createEmailAccountId(),
+      prov: String(fallback.prov || "").trim(),
+      email: String(fallback.email || "").trim(),
+      pass: String(fallback.pass || ""),
+      folder: String(fallback.folder || "INBOX").trim() || "INBOX",
+      count: Math.max(1, Math.min(500, Number(fallback.count || 50) || 50)),
+      imapHost: String(fallback.imapHost || "").trim(),
+      imapPort: Number(fallback.imapPort || 993) || 993
+    }];
+  }
+
+  return [{
+    id: createEmailAccountId(),
+    prov: "",
+    email: "",
+    pass: "",
+    folder: "INBOX",
+    count: 50,
+    imapHost: "",
+    imapPort: 993
+  }];
+}
+
+function renderEmailAccountsEditor() {
+  const root = document.getElementById("email-accounts-editor");
+  if (!root) return;
+  const accounts = normalizeEmailAccounts(state.settings.emailAccounts, state.settings);
+  state.settings.emailAccounts = accounts;
+
+  if (!accounts.length) {
+    root.innerHTML = `
+      <div class="email-account-card empty-card">
+        <div class="email-account-head">
+          <div class="email-account-title">Email account</div>
+        </div>
+        <div class="email-account-hint">Add up to 10 inboxes. Luci will sync them all into one combined view.</div>
+      </div>
+    `;
+    return;
+  }
+
+  root.innerHTML = accounts.map((account, index) => `
+    <div class="email-account-card" data-email-account-id="${esc(account.id)}">
+      <div class="email-account-head">
+        <div class="email-account-title">Email ${index + 1}${account.email ? ` · ${esc(account.email)}` : ""}</div>
+        <button class="btn danger" type="button" onclick="removeEmailAccount(${JSON.stringify(account.id)})" ${accounts.length <= 1 ? "disabled" : ""}>remove</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Provider</label>
+          <select class="form-select" data-email-field="prov" onchange="applyPresetToAccount(${JSON.stringify(account.id)}, this.value)">
+            <option value="" ${account.prov === "" ? "selected" : ""}>Custom IMAP</option>
+            <option value="gmail" ${account.prov === "gmail" ? "selected" : ""}>Gmail</option>
+            <option value="outlook" ${account.prov === "outlook" ? "selected" : ""}>Outlook</option>
+            <option value="yahoo" ${account.prov === "yahoo" ? "selected" : ""}>Yahoo</option>
+            <option value="qq" ${account.prov === "qq" ? "selected" : ""}>QQ Mail</option>
+            <option value="163" ${account.prov === "163" ? "selected" : ""}>163 Mail</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email address</label>
+          <input class="form-input" data-email-field="email" type="email" value="${esc(account.email)}" placeholder="you@example.com">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">IMAP host</label>
+          <input class="form-input" data-email-field="imapHost" value="${esc(account.imapHost)}" placeholder="imap.gmail.com">
+        </div>
+        <div class="form-group" style="max-width:90px">
+          <label class="form-label">Port</label>
+          <input class="form-input" data-email-field="imapPort" type="number" value="${esc(account.imapPort)}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password / App password</label>
+          <input class="form-input" data-email-field="pass" type="password" value="${esc(account.pass)}" placeholder="••••••••">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Folder</label>
+          <input class="form-input" data-email-field="folder" value="${esc(account.folder)}" placeholder="INBOX">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sync size (max)</label>
+          <input class="form-input" data-email-field="count" type="number" value="${esc(account.count)}" min="1" max="500">
+        </div>
+      </div>
+      <div class="form-help">${esc(PROVIDER_HELP[account.prov] || "If you use custom IMAP, the most common secure IMAP port is 993.")}</div>
+    </div>
+  `).join("");
+}
+
+function readEmailAccountsFromForm() {
+  const cards = Array.from(document.querySelectorAll("[data-email-account-id]"));
+  state.settings.emailAccounts = normalizeEmailAccounts(cards.map((card) => ({
+    id: card.getAttribute("data-email-account-id") || createEmailAccountId(),
+    prov: card.querySelector('[data-email-field="prov"]')?.value || "",
+    email: card.querySelector('[data-email-field="email"]')?.value?.trim() || "",
+    pass: card.querySelector('[data-email-field="pass"]')?.value || "",
+    folder: card.querySelector('[data-email-field="folder"]')?.value?.trim() || "INBOX",
+    count: Number(card.querySelector('[data-email-field="count"]')?.value || 50),
+    imapHost: card.querySelector('[data-email-field="imapHost"]')?.value?.trim() || "",
+    imapPort: Number(card.querySelector('[data-email-field="imapPort"]')?.value || 993)
+  })));
+}
+
+function addEmailAccount() {
+  readEmailAccountsFromForm();
+  if (state.settings.emailAccounts.length >= MAX_EMAIL_ACCOUNTS) {
+    toast("you can add up to 10 emails");
+    return;
+  }
+  state.settings.emailAccounts = normalizeEmailAccounts([
+    ...state.settings.emailAccounts,
+    { id: createEmailAccountId(), prov: "", email: "", pass: "", folder: "INBOX", count: 50, imapHost: "", imapPort: 993 }
+  ]);
+  renderEmailAccountsEditor();
+  saveToStorage();
+}
+
+function removeEmailAccount(id) {
+  readEmailAccountsFromForm();
+  const nextAccounts = state.settings.emailAccounts.filter((item) => item.id !== id);
+  if (!nextAccounts.length) {
+    state.settings.emailAccounts = normalizeEmailAccounts([]);
+  } else {
+    state.settings.emailAccounts = normalizeEmailAccounts(nextAccounts);
+  }
+  renderEmailAccountsEditor();
+  updateStepCards();
+  updateStatusBar();
+  saveToStorage();
 }
 
 function normalizeCustomCategories(values = []) {
@@ -1386,31 +1556,19 @@ function removeCustomCategory(id) {
 
 function applySettingsToForm() {
   const s = state.settings;
-  setVal("email-preset", s.prov || "");
-  setVal("email-addr", s.email);
-  setVal("imap-host", s.imapHost);
-  setVal("imap-port", s.imapPort);
-  setVal("imap-pass", s.pass);
-  setVal("imap-folder", s.folder);
-  setVal("sync-size", s.count);
+  s.emailAccounts = normalizeEmailAccounts(s.emailAccounts, s);
   setVal("ai-provider", s.aiProvider);
   setVal("ai-model", s.aiModel);
   setVal("ai-key", s.aiKey);
   setVal("learning-whitelist", s.learningWhitelist || "");
-  document.getElementById("provider-help").textContent = PROVIDER_HELP[s.prov] || "";
   document.getElementById("ai-help").innerHTML = AI_HINTS[s.aiProvider] || AI_HINTS.openai;
   setVal("category-mode", state.ui.categoryMode);
+  renderEmailAccountsEditor();
   renderCustomCategoriesEditor();
 }
 
 function readSettingsFromForm() {
-  state.settings.prov = getVal("email-preset");
-  state.settings.email = getVal("email-addr").trim();
-  state.settings.imapHost = getVal("imap-host").trim();
-  state.settings.imapPort = Number(getVal("imap-port") || 993);
-  state.settings.pass = getVal("imap-pass");
-  state.settings.folder = getVal("imap-folder").trim() || "INBOX";
-  state.settings.count = Number(getVal("sync-size") || 50);
+  readEmailAccountsFromForm();
   state.settings.aiProvider = getVal("ai-provider");
   state.settings.aiModel = getVal("ai-model").trim();
   state.settings.aiKey = getVal("ai-key").trim();
@@ -1418,20 +1576,34 @@ function readSettingsFromForm() {
   readCustomCategoriesFromForm();
 }
 
-function currentCfg() {
-  readSettingsFromForm();
+function validEmailAccounts() {
+  return normalizeEmailAccounts(state.settings.emailAccounts, state.settings).filter((account) => (
+    account.email && account.pass && (account.prov || account.imapHost)
+  ));
+}
+
+function currentCfgForAccount(account) {
   return {
-    prov: state.settings.prov,
-    email: state.settings.email,
-    pass: state.settings.pass,
-    folder: state.settings.folder,
-    count: state.settings.count,
-    imapHost: state.settings.imapHost,
-    imapPort: state.settings.imapPort,
+    prov: account.prov,
+    email: account.email,
+    pass: account.pass,
+    folder: account.folder,
+    count: account.count,
+    imapHost: account.imapHost,
+    imapPort: account.imapPort,
     aiProvider: state.settings.aiProvider,
     aiKey: state.settings.aiKey,
     aiModel: state.settings.aiModel
   };
+}
+
+function findAccountById(accountId) {
+  return normalizeEmailAccounts(state.settings.emailAccounts, state.settings).find((account) => account.id === accountId) || null;
+}
+
+function currentCfgForEmail(email) {
+  const account = findAccountById(email?.accountId);
+  return account ? currentCfgForAccount(account) : null;
 }
 
 function currentLearningWhitelist() {
@@ -1441,8 +1613,8 @@ function currentLearningWhitelist() {
     .filter(Boolean);
 }
 
-function currentOwnerTokens() {
-  const email = String(state.settings.email || "").trim().toLowerCase();
+function ownerTokensForEmailAddress(value) {
+  const email = String(value || "").trim().toLowerCase();
   const localPart = email.split("@")[0] || "";
   return localPart
     .split(/[^a-z]+/)
@@ -1458,8 +1630,8 @@ function withLearningSettings(email) {
   return {
     ...email,
     learningWhitelist: currentLearningWhitelist(),
-    ownerEmail: state.settings.email || "",
-    ownerTokens: currentOwnerTokens(),
+    ownerEmail: email.ownerEmail || email.accountEmail || "",
+    ownerTokens: email.ownerTokens || ownerTokensForEmailAddress(email.ownerEmail || email.accountEmail || ""),
     customCategories: state.settings.customCategories || []
   };
 }
@@ -1601,6 +1773,10 @@ function handleGlobalKeydown(event) {
 }
 
 function applyPreset(value) {
+  applyPresetToAccount(null, value);
+}
+
+function applyPresetToAccount(accountId, value) {
   const presets = {
     gmail: { host: "imap.gmail.com", port: 993 },
     outlook: { host: "outlook.office365.com", port: 993 },
@@ -1608,11 +1784,18 @@ function applyPreset(value) {
     qq: { host: "imap.qq.com", port: 993 },
     "163": { host: "imap.163.com", port: 993 }
   };
-  document.getElementById("provider-help").textContent = PROVIDER_HELP[value] || "";
-  if (presets[value]) {
-    setVal("imap-host", presets[value].host);
-    setVal("imap-port", presets[value].port);
-  }
+  if (!accountId) return;
+  readEmailAccountsFromForm();
+  state.settings.emailAccounts = normalizeEmailAccounts(state.settings.emailAccounts.map((account) => {
+    if (account.id !== accountId) return account;
+    return {
+      ...account,
+      prov: value,
+      imapHost: presets[value]?.host || account.imapHost,
+      imapPort: presets[value]?.port || account.imapPort
+    };
+  }));
+  renderEmailAccountsEditor();
 }
 
 function applyAIPreset(value) {
@@ -1636,7 +1819,7 @@ function saveSettings() {
 }
 
 function hasEmailConfig() {
-  return Boolean(state.settings.email && state.settings.pass && (state.settings.prov || state.settings.imapHost));
+  return validEmailAccounts().length > 0;
 }
 
 function hasAIConfig() {
@@ -1646,7 +1829,7 @@ function hasAIConfig() {
 function updateStepCards() {
   const s = state.settings;
   const mapping = [
-    ["step1-card", Boolean(s.email && s.pass && (s.prov || s.imapHost))],
+    ["step1-card", validEmailAccounts().length > 0],
     ["step2-card", Boolean(s.aiKey && s.aiModel)]
   ];
   mapping.forEach(([id, ok]) => {
@@ -1666,12 +1849,13 @@ function updateStepCards() {
 function updateStatusBar() {
   const imapDot = document.getElementById("status-imap");
   const imapLabel = document.getElementById("status-imap-label");
-  if (state.ui.connected && state.settings.email) {
+  const accounts = validEmailAccounts();
+  if (state.ui.connected && accounts.length) {
     imapDot.className = "status-dot ok";
-    imapLabel.textContent = state.settings.email;
-  } else if (state.settings.email) {
+    imapLabel.textContent = accounts.length === 1 ? accounts[0].email : `${accounts.length} email accounts connected`;
+  } else if (accounts.length) {
     imapDot.className = "status-dot warn";
-    imapLabel.textContent = state.settings.email;
+    imapLabel.textContent = accounts.length === 1 ? accounts[0].email : `${accounts.length} email accounts ready`;
   } else {
     imapDot.className = "status-dot";
     imapLabel.textContent = "email · not connected";
@@ -1798,6 +1982,15 @@ function timingLabel(decision) {
   return "";
 }
 
+function shouldSurfaceInDoFirst(decision) {
+  if (decision.category !== "action") return false;
+  if (decision.urgency !== "high") return false;
+  if (decision.debug?.promoSignals) return false;
+  if (decision.debug?.newsSignals || decision.debug?.learningSource) return false;
+  if (decision.debug?.transactionalInfo && !decision.requires_reply) return false;
+  return decision.requires_reply || decision.follow_up || decision.convert_to_task;
+}
+
 function renderEmailList() {
   const list = document.getElementById("email-list");
   const emails = filteredEmails();
@@ -1826,6 +2019,7 @@ function renderEmailList() {
       <div
         class="email-item${email.unread ? " unread" : ""}${state.ui.selectedEmail === email.id ? " selected" : ""}"
         onclick="selectEmail(${JSON.stringify(email.id)})"
+        ondblclick="selectEmail(${JSON.stringify(email.id)})"
         onkeydown="activateEmailFromKeyboard(${JSON.stringify(email.id)}, event)"
         tabindex="0"
         role="button"
@@ -1927,16 +2121,45 @@ async function syncEmails() {
   const btn = document.getElementById("btn-sync");
   btn.disabled = true;
   btn.innerHTML = `<div class="spinner"></div> syncing…`;
-  updateSyncProgress("Mailbox Sync", 6, "Connecting to mailbox...", 0, 0, true);
+  const accounts = validEmailAccounts();
+  updateSyncProgress("Mailbox Sync", 6, "Connecting to mailbox...", 0, accounts.length, true);
   toast("connecting to mailbox…");
   try {
-    const data = await syncEmailsWithProgress(currentCfg());
-    state.emails = data.emails || [];
+    const mergedEmails = [];
+    for (let index = 0; index < accounts.length; index += 1) {
+      const account = accounts[index];
+      updateSyncProgress("Mailbox Sync", Math.round((index / accounts.length) * 100), `Connecting ${account.email}...`, index, accounts.length, true);
+      const data = await syncEmailsWithProgress(currentCfgForAccount(account), (event) => {
+        const base = (index / accounts.length) * 100;
+        const scaled = base + ((event.progress || 0) / accounts.length);
+        updateSyncProgress(
+          "Mailbox Sync",
+          scaled,
+          `${account.email}: ${event.message || "Syncing mailbox..."}`,
+          index + ((event.progress || 0) >= 100 ? 1 : 0),
+          accounts.length,
+          true
+        );
+      });
+      const accountEmails = (data.emails || []).map((email) => ({
+        ...email,
+        rawId: email.id,
+        rawUid: email.uid ?? email.id,
+        id: `${account.id}:${email.id}`,
+        uid: `${account.id}:${email.uid ?? email.id}`,
+        accountId: account.id,
+        accountEmail: account.email,
+        ownerEmail: account.email,
+        ownerTokens: ownerTokensForEmailAddress(account.email)
+      }));
+      mergedEmails.push(...accountEmails);
+    }
+    state.emails = mergedEmails.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
     state.learning.signature = "";
     state.learning.summaries = {};
     state.ui.connected = true;
     saveToStorage();
-    updateSyncProgress("Mailbox Sync", 100, `Synced ${state.emails.length} emails.`, state.emails.length, state.emails.length, true);
+    updateSyncProgress("Mailbox Sync", 100, `Synced ${state.emails.length} emails from ${accounts.length} inbox${accounts.length === 1 ? "" : "es"}.`, accounts.length, accounts.length, true);
     hideSyncProgress();
     toast(`synced ${state.emails.length} emails`);
   } catch (error) {
@@ -2052,8 +2275,9 @@ async function toggleStarSelected() {
   if (!email) return;
   const nextStar = !email.star;
   try {
-    if (state.ui.connected) {
-      await api("/api/emails/star", { cfg: currentCfg(), uid: email.id, star: nextStar });
+    const cfg = currentCfgForEmail(email);
+    if (state.ui.connected && cfg) {
+      await api("/api/emails/star", { cfg, uid: email.rawId ?? email.id, star: nextStar });
     }
     email.star = nextStar;
     document.getElementById("btn-star").textContent = nextStar ? "unstar" : "star";
@@ -2069,9 +2293,10 @@ async function deleteEmail() {
   const email = getSelectedEmail();
   if (!email) return;
   try {
-    if (state.ui.connected) {
+    const cfg = currentCfgForEmail(email);
+    if (state.ui.connected && cfg) {
       updateSyncProgress("Deleting Emails", 6, "Connecting to mailbox...", 0, 1, true);
-      await deleteEmailsWithProgress({ cfg: currentCfg(), uids: [email.id] });
+      await deleteEmailsWithProgress({ cfg, uids: [email.rawId ?? email.id] });
       updateSyncProgress("Deleting Emails", 100, "Deleted 1 email.", 1, 1, true);
       hideSyncProgress();
     }
@@ -2095,9 +2320,15 @@ async function testConnections() {
   btn.innerHTML = `<div class="spinner"></div> testing…`;
   result.style.display = "none";
   try {
-    const data = await api("/api/test-connection", currentCfg());
+    const accounts = validEmailAccounts();
+    if (!accounts.length) throw new Error("Add at least one email account first.");
+    const messages = [];
+    for (const account of accounts) {
+      const data = await api("/api/test-connection", currentCfgForAccount(account));
+      messages.push(`${account.email}: ${data.message || "Looks good."}`);
+    }
     result.className = "connection-test-result result-ok";
-    result.textContent = data.message || "Email and AI look good.";
+    result.textContent = messages.join("\n");
     result.style.display = "block";
     toast("connections look good");
   } catch (error) {
@@ -2181,16 +2412,30 @@ async function deleteBriefSection(sectionKey) {
     return;
   }
 
-  const uids = emails.map((email) => email.id);
   try {
     if (state.ui.connected) {
-      updateSyncProgress("Deleting Emails", 6, "Connecting to mailbox...", 0, uids.length, true);
-      await deleteEmailsWithProgress({ cfg: currentCfg(), uids });
-      updateSyncProgress("Deleting Emails", 100, `Deleted ${uids.length} emails.`, uids.length, uids.length, true);
+      const groups = emails.reduce((map, email) => {
+        const key = email.accountId || "unknown";
+        if (!map[key]) map[key] = [];
+        map[key].push(email);
+        return map;
+      }, {});
+      const total = emails.length;
+      let deleted = 0;
+      updateSyncProgress("Deleting Emails", 6, "Connecting to mailbox...", 0, total, true);
+      for (const [accountId, accountEmails] of Object.entries(groups)) {
+        const cfg = currentCfgForEmail(accountEmails[0]);
+        if (!cfg) continue;
+        await deleteEmailsWithProgress({ cfg, uids: accountEmails.map((email) => email.rawId ?? email.id) });
+        deleted += accountEmails.length;
+        updateSyncProgress("Deleting Emails", Math.round((deleted / total) * 100), `Deleted ${deleted} of ${total} emails.`, deleted, total, true);
+      }
+      updateSyncProgress("Deleting Emails", 100, `Deleted ${total} emails.`, total, total, true);
       hideSyncProgress();
     }
-    state.emails = state.emails.filter((email) => !uids.includes(email.id));
-    if (state.ui.selectedEmail && uids.includes(state.ui.selectedEmail)) {
+    const ids = emails.map((email) => email.id);
+    state.emails = state.emails.filter((email) => !ids.includes(email.id));
+    if (state.ui.selectedEmail && ids.includes(state.ui.selectedEmail)) {
       clearSelection();
     }
     updateStatusBar();
@@ -2198,7 +2443,7 @@ async function deleteBriefSection(sectionKey) {
     renderBrief();
     renderCategoriesView();
     renderRulesView();
-    toast(`${uids.length} promo emails removed`);
+    toast(`${ids.length} promo emails removed`);
   } catch (error) {
     updateSyncProgress("Deleting Emails", 100, error.message || "Delete failed.", 0, 0, true);
     hideSyncProgress(1800);
@@ -2212,7 +2457,7 @@ function renderBrief() {
   const now = new Date();
   const formattedDate = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   updatePrimarySyncButton();
-  const urgent = state.emails.filter((email) => emailDecision(email).urgency === "high" && emailDecision(email).category !== "promo");
+  const urgent = state.emails.filter((email) => shouldSurfaceInDoFirst(emailDecision(email)));
   const replies = state.emails.filter((email) => {
     const d = emailDecision(email);
     return d.requires_reply && d.category !== "promo";
@@ -2272,8 +2517,8 @@ function renderBrief() {
                 <div class="brief-value-item-copy">Pull time-sensitive messages forward before the rest of the inbox crowds them out.</div>
               </div>
               <div class="brief-value-item">
-                <div class="brief-value-item-title">Turn threads into tasks</div>
-                <div class="brief-value-item-copy">Separate real work from low-value reading so your next move is clearer.</div>
+                <div class="brief-value-item-title">Get cleaner newsletter summaries</div>
+                <div class="brief-value-item-copy">Pull the real insight out of newsletters without the clutter of links, HTML fragments, and email boilerplate.</div>
               </div>
             </div>
           </div>
@@ -2284,9 +2529,20 @@ function renderBrief() {
   } else {
     briefContent.classList.remove("is-empty");
     briefHeader.innerHTML = `
-      <div class="brief-lead">We make decisions easier for you.</div>
-      <div class="brief-sublead">Start with what matters, save the useful reading for later, and let the noise fall away.</div>
-      <div class="brief-date" id="brief-date">${formattedDate}</div>
+      <div class="brief-header-top">
+        <div class="brief-header-copy">
+          <div class="brief-lead">We make decisions easier for you.</div>
+          <div class="brief-sublead">Start with what matters, save the useful reading for later, and let the noise fall away.</div>
+          <div class="brief-date" id="brief-date">${formattedDate}</div>
+        </div>
+        <button class="btn primary brief-sync-btn" type="button" onclick="syncEmails()">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M14 8a6 6 0 1 1-1.5-3.9"></path>
+            <path d="M14 1v4h-4" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+          Resync inbox
+        </button>
+      </div>
     `;
     summaryBox.style.display = "block";
     summaryText.textContent = `Start with ${urgent.length} time-sensitive emails, then clear ${replies.length} messages waiting on you. ${learning.length} learning newsletters are ready to skim, and ${ignored.length} promos can safely wait.`;
@@ -2496,7 +2752,7 @@ function bindBriefInteractions() {
     }
     if (action === "select-email" && emailId) {
       switchView("inbox");
-      setTimeout(() => selectEmail(Number(emailId)), 30);
+      setTimeout(() => selectEmail(emailId), 30);
     }
   });
 }
@@ -2512,6 +2768,9 @@ Object.assign(window, {
   selectEmail,
   selectRelativeEmail,
   activateEmailFromKeyboard,
+  addEmailAccount,
+  removeEmailAccount,
+  applyPresetToAccount,
   toggleWhy,
   toggleStarSelected,
   summarizeEmail,
