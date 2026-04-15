@@ -7,10 +7,23 @@ import { simpleParser } from "mailparser";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 3030);
+const ALLOWED_ORIGINS = new Set([
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
+  "null"
+]);
 
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = String(req.headers.origin || "").trim();
+  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+    return res.status(403).json({ ok: false, error: "Luci only accepts local browser requests." });
+  }
+  if (origin) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+  }
   res.header("Access-Control-Allow-Headers", "Content-Type");
   res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   if (req.method === "OPTIONS") {
@@ -795,6 +808,9 @@ app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.listen(PORT, () => {
-  console.log(`Luci's Inbox Helper local server running at http://localhost:${PORT}/`);
+app.listen(PORT, HOST, () => {
+  console.log(`Luci's Inbox Helper local server running at http://${HOST}:${PORT}/`);
+  if (HOST === "127.0.0.1") {
+    console.log(`Open http://localhost:${PORT}/ in your browser.`);
+  }
 });
