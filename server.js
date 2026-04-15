@@ -3,21 +3,68 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
+import {
+  DECISION_CATEGORIES,
+  DECISION_URGENCY_LEVELS,
+  DECISION_EFFORT_LEVELS,
+  classifyEmailDecision
+} from "./decision-rules.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+const HOST = process.env.HOST || "127.0.0.1";
 const PORT = Number(process.env.PORT || 3030);
+const LOCAL_ORIGINS = new Set([
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`
+]);
 
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+export function isLoopbackAddress(value = "") {
+  return ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(String(value || "").trim());
+}
+
+export function localOnlyMiddleware(req, res, next) {
+  const origin = String(req.headers.origin || "").trim();
+  const remoteAddress = req.socket?.remoteAddress || req.ip || "";
+
+  if (!isLoopbackAddress(remoteAddress)) {
+    return res.status(403).json({
+      ok: false,
+      error: "Luci is a local-only app. This server only accepts loopback requests."
+    });
+  }
+
+  if (origin && !LOCAL_ORIGINS.has(origin)) {
+    return res.status(403).json({
+      ok: false,
+      error: "Luci only accepts requests from localhost."
+    });
+  }
+
+  if (origin) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+  }
   res.header("Access-Control-Allow-Headers", "Content-Type");
   res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
   next();
-});
+}
+
+export function healthPayload(host = HOST, port = PORT) {
+  return {
+    ok: true,
+    app: "Luci's Inbox Helper local server",
+    localOnly: true,
+    host,
+    port
+  };
+}
+
+app.use(localOnlyMiddleware);
 
 app.use(express.json({ limit: "8mb" }));
 
@@ -52,9 +99,8 @@ const AI_PROVIDERS = {
   }
 };
 
-const DECISION_CATEGORIES = ["action", "info", "promo"];
-const DECISION_URGENCY_LEVELS = ["low", "medium", "high"];
-const DECISION_EFFORT_LEVELS = ["quick", "deep"];
+const IMAP_SESSION_TTL_MS = 45000;
+const imapSessions = new Map();
 
 function resolveImapConfig(cfg = {}) {
   const preset = PROVIDERS[cfg.prov] || {};
@@ -100,6 +146,38 @@ function formatDate(value) {
   }
 
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function stripHtml(value = "") {
+  return String(value || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]+>/g, " ");
+}
+
+function cleanNewsletterText(value = "") {
+  return stripHtml(String(value || ""))
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, "$1")
+    .replace(/\[[^\]]+\]\(\s*\)/g, " ")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\bwww\.\S+/gi, " ")
+    .replace(/\S+\.(png|jpg|jpeg|gif|webp)\b/gi, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/<!doctype html>/gi, " ")
+    .replace(/insert hidden preheader text here\.?/gi, " ")
+    .replace(/[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\u3164\ufeff\uffa0]/g, " ")
+    .replace(/\b(unsubscribe|view in browser|manage preferences|privacy policy|terms of service)\b[\s\S]*/gi, " ")
+    .replace(/\(\s*https?:\/\/[^)]+\)/gi, " ")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildCleanPreview(text = "", maxLength = 220) {
+  const cleaned = cleanNewsletterText(text);
+  return cleaned.slice(0, maxLength).trim() || "(No preview available)";
 }
 
 function categorizeEmail({ from, subject, text }) {
@@ -168,7 +246,8 @@ function getDefaultDecisionLabels() {
   return [
     { name: "action", description: "Requires decision, action, coordination, approval, or execution.", color: "#4f8ef7" },
     { name: "info", description: "Informational only. Useful to read, but no clear action is required.", color: "#3ecf8e" },
-    { name: "promo", description: "Promotional, marketing, newsletter-like, or low-value bulk communication.", color: "#f7c948" }
+    { name: "promo", description: "Promotional, marketing, newsletter-like, or low-value bulk communication.", color: "#f7c948" },
+    { name: "learning", description: "Newsletters, digests, and community updates worth skimming to learn from later.", color: "#8d7bd1" }
   ];
 }
 
@@ -178,94 +257,6 @@ function sanitizeStrategySections(sections = []) {
     .filter(Boolean)
     .filter((item) => !/category\s*:\s*/i.test(item))
     .slice(0, 4);
-}
-
-function classifyPresetDecision(email = {}) {
-  const from = String(email.from || "");
-  const subject = String(email.subj || email.subject || "");
-  const preview = String(email.prev || email.preview || "");
-  const body = String(email.body || email.bodySnippet || "");
-  const addr = String(email.addr || email.address || "");
-  const haystack = `${from} ${addr} ${subject} ${preview} ${body}`.toLowerCase();
-
-  const hasReplyExpectation = [
-    "please reply",
-    "let me know",
-    "can you",
-    "could you",
-    "would you",
-    "thoughts?",
-    "feedback",
-    "reply by",
-    "respond",
-    "confirm",
-    "approve",
-    "question",
-    "following up",
-    "follow up",
-    "next steps"
-  ].some((pattern) => haystack.includes(pattern)) || /\?$/.test(subject.trim());
-
-  const isNoReplySender = /(no-?reply|donotreply|notifications?@|updates?@|noreply@)/i.test(addr);
-  const promoSignals = [
-    "clearance", "% off", "percent off", "up to ", "sale", "deal", "shop now", "score now", "limited time",
-    "free shipping", "coupon", "promo code", "unsubscribe", "newsletter", "digest", "substack", "black friday",
-    "cyber monday", "dick's sporting goods", "dicks sporting goods", "doorbuster", "new arrivals", "shop today"
-  ].some((pattern) => haystack.includes(pattern));
-  const infoSignals = [
-    "receipt", "shipped", "delivered", "tracking", "statement", "summary", "notification", "reminder", "alert",
-    "security", "sign-in", "login", "invoice", "itinerary", "reservation", "calendar", "digest", "confirmed"
-  ].some((pattern) => haystack.includes(pattern));
-  const actionSignals = [
-    "action required", "approve", "review", "deadline", "due", "asap", "urgent", "interview", "meeting", "proposal",
-    "contract", "please", "respond", "reply", "decision needed", "coordination", "availability", "schedule"
-  ].some((pattern) => haystack.includes(pattern));
-  const highUrgencySignals = [
-    "urgent", "asap", "today", "by eod", "deadline", "expires", "action required", "immediately", "final reminder"
-  ].some((pattern) => haystack.includes(pattern));
-  const deepSignals = [
-    "proposal", "contract", "scope", "review", "deck", "spec", "plan", "analysis", "notes", "brief", "summary", "document", "attached"
-  ].some((pattern) => haystack.includes(pattern)) || body.length > 1600;
-
-  let category = "info";
-  if (promoSignals) {
-    category = "promo";
-  } else if (actionSignals || hasReplyExpectation) {
-    category = "action";
-  } else if (!isNoReplySender && /\b(re|fwd):/i.test(subject)) {
-    category = "action";
-  } else if (infoSignals) {
-    category = "info";
-  }
-
-  const requiresReply = category === "action" && hasReplyExpectation && !isNoReplySender;
-  const urgency = highUrgencySignals ? "high" : category === "action" ? "medium" : "low";
-  const effort = category === "action" && deepSignals ? "deep" : (category === "info" && deepSignals ? "deep" : "quick");
-  const followUp = category === "action" && [
-    "follow up", "following up", "check back", "next steps", "waiting on", "loop back", "keep posted", "reminder"
-  ].some((pattern) => haystack.includes(pattern));
-  const convertToTask = category === "action" && (effort === "deep" || followUp || urgency !== "low");
-
-  let reason = "Primarily informational with no strong action signal.";
-  if (category === "promo") {
-    reason = "Contains promotional or newsletter-like signals and does not look like priority work.";
-  } else if (category === "action") {
-    reason = requiresReply
-      ? "The sender appears to expect a response or action from you."
-      : "This message contains a clear action or coordination signal even if no reply is strictly required.";
-  } else if (infoSignals) {
-    reason = "Looks like a status update, receipt, alert, or notification that is useful to read but not urgent to act on.";
-  }
-
-  return {
-    category,
-    requires_reply: requiresReply,
-    urgency,
-    effort,
-    follow_up: followUp,
-    convert_to_task: convertToTask,
-    reason
-  };
 }
 
 function resolveAIConfig({ provider, apiKey, model }) {
@@ -343,21 +334,66 @@ async function callAI({ provider, apiKey, model, maxTokens, messages, responseFo
 
 async function withImap(cfg, handler) {
   const imapConfig = resolveImapConfig(cfg);
-  const client = new ImapFlow({
+  const key = JSON.stringify({
     host: imapConfig.host,
     port: imapConfig.port,
     secure: imapConfig.secure,
-    auth: imapConfig.auth,
-    logger: false
+    user: imapConfig.auth.user,
+    pass: imapConfig.auth.pass
   });
 
-  try {
+  const getFreshSession = async () => {
+    const client = new ImapFlow({
+      host: imapConfig.host,
+      port: imapConfig.port,
+      secure: imapConfig.secure,
+      auth: imapConfig.auth,
+      logger: false
+    });
     await client.connect();
-    return await handler(client, imapConfig);
-  } finally {
+    const session = { client, timer: null, key };
+    imapSessions.set(key, session);
+    return session;
+  };
+
+  const scheduleCleanup = (session) => {
+    if (!session) return;
+    clearTimeout(session.timer);
+    session.timer = setTimeout(async () => {
+      const current = imapSessions.get(key);
+      if (current !== session) return;
+      imapSessions.delete(key);
+      try {
+        await session.client.logout();
+      } catch {}
+    }, IMAP_SESSION_TTL_MS);
+  };
+
+  const disposeSession = async (session) => {
+    if (!session) return;
+    clearTimeout(session.timer);
+    const current = imapSessions.get(key);
+    if (current === session) {
+      imapSessions.delete(key);
+    }
     try {
-      await client.logout();
+      await session.client.logout();
     } catch {}
+  };
+
+  let session = imapSessions.get(key);
+
+  try {
+    if (!session || session.client.usable === false) {
+      session = await getFreshSession();
+    }
+
+    const result = await handler(session.client, imapConfig);
+    scheduleCleanup(session);
+    return result;
+  } catch (error) {
+    await disposeSession(session);
+    throw error;
   }
 }
 
@@ -396,20 +432,44 @@ async function findTrashMailbox(client) {
   return byName?.path || "Trash";
 }
 
-async function fetchEmails(cfg) {
+async function fetchEmails(cfg, onProgress = () => {}) {
   return withImap(cfg, async (client, imapConfig) => {
     const count = Math.max(1, Math.min(Number(cfg.count || 50), 500));
+    onProgress({
+      phase: "connecting",
+      progress: 8,
+      message: "Connecting to mailbox..."
+    });
     const lock = await client.getMailboxLock(imapConfig.folder);
 
     try {
+      onProgress({
+        phase: "opening",
+        progress: 18,
+        message: `Opening ${imapConfig.folder}...`
+      });
       const mailbox = await client.status(imapConfig.folder, { messages: true });
       if (!mailbox.messages) {
+        onProgress({
+          phase: "complete",
+          progress: 100,
+          message: "Inbox is empty."
+        });
         return [];
       }
 
       const start = Math.max(1, mailbox.messages - count + 1);
       const range = `${start}:${mailbox.messages}`;
       const emails = [];
+      const total = mailbox.messages - start + 1;
+
+      onProgress({
+        phase: "fetching",
+        progress: 24,
+        message: `Fetching ${total} email${total === 1 ? "" : "s"}...`,
+        completed: 0,
+        total
+      });
 
       for await (const message of client.fetch(range, {
         uid: true,
@@ -423,10 +483,11 @@ async function fetchEmails(cfg) {
         const from = fromValue?.name || fromValue?.address || message.envelope?.from?.[0]?.name || message.envelope?.from?.[0]?.address || "Unknown sender";
         const addr = fromValue?.address || message.envelope?.from?.[0]?.address || "";
         const subj = parsed.subject || message.envelope?.subject || "(No subject)";
-        const text = (parsed.text || parsed.html || "").replace(/\s+/g, " ").trim();
-        const prev = text.slice(0, 220) || "(No preview available)";
-        const cat = categorizeEmail({ from, subject: subj, text });
-        const spam = isSpam({ from, subject: subj, text });
+        const rawText = parsed.text || parsed.html || "";
+        const cleanedText = cleanNewsletterText(rawText);
+        const prev = buildCleanPreview(rawText, 220);
+        const cat = categorizeEmail({ from, subject: subj, text: cleanedText || rawText });
+        const spam = isSpam({ from, subject: subj, text: cleanedText || rawText });
 
         emails.push({
           id: message.uid,
@@ -435,7 +496,7 @@ async function fetchEmails(cfg) {
           addr,
           subj,
           prev,
-          body: (parsed.text || prev).trim(),
+          body: (cleanedText || prev).trim(),
           date: formatDate(message.internalDate || message.envelope?.date),
           isoDate: new Date(message.internalDate || message.envelope?.date || Date.now()).toISOString(),
           cat,
@@ -443,9 +504,26 @@ async function fetchEmails(cfg) {
           unread: !(message.flags?.has("\\Seen") || false),
           spam
         });
+
+        const completed = emails.length;
+        const ratio = total ? completed / total : 1;
+        onProgress({
+          phase: "fetching",
+          progress: Math.min(94, Math.round(24 + ratio * 68)),
+          message: `Fetching emails... ${completed}/${total}`,
+          completed,
+          total
+        });
       }
 
       emails.sort((a, b) => new Date(b.isoDate) - new Date(a.isoDate));
+      onProgress({
+        phase: "complete",
+        progress: 100,
+        message: `Synced ${emails.length} email${emails.length === 1 ? "" : "s"}.`,
+        completed: emails.length,
+        total: emails.length
+      });
       return emails;
     } finally {
       lock.release();
@@ -453,8 +531,64 @@ async function fetchEmails(cfg) {
   });
 }
 
+async function deleteEmails(cfg, uids, onProgress = () => {}) {
+  if (!Array.isArray(uids) || !uids.length) {
+    throw new Error("No emails were selected.");
+  }
+
+  return withImap(cfg, async (client, imapConfig) => {
+    onProgress({
+      phase: "connecting",
+      progress: 8,
+      message: "Connecting to mailbox..."
+    });
+
+    const lock = await client.getMailboxLock(imapConfig.folder);
+    const trashPath = await findTrashMailbox(client);
+
+    try {
+      const total = uids.length;
+      const batchSize = Math.min(25, total);
+      onProgress({
+        phase: "deleting",
+        progress: 18,
+        message: `Moving ${total} email${total === 1 ? "" : "s"} to ${trashPath}...`,
+        completed: 0,
+        total
+      });
+
+      for (let index = 0; index < uids.length; index += batchSize) {
+        const batch = uids.slice(index, index + batchSize);
+        await client.messageMove(batch, trashPath, { uid: true });
+
+        const completed = Math.min(index + batch.length, total);
+        const ratio = total ? completed / total : 1;
+        onProgress({
+          phase: "deleting",
+          progress: Math.min(94, Math.round(18 + ratio * 76)),
+          message: `Deleting emails... ${completed}/${total}`,
+          completed,
+          total
+        });
+      }
+
+      onProgress({
+        phase: "complete",
+        progress: 100,
+        message: `Deleted ${total} email${total === 1 ? "" : "s"}.`,
+        completed: total,
+        total
+      });
+
+      return { deleted: total };
+    } finally {
+      lock.release();
+    }
+  });
+}
+
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, app: "Luci's Inbox Helper local server" });
+  res.json(healthPayload(HOST, PORT));
 });
 
 app.post("/api/test-connection", async (req, res) => {
@@ -497,27 +631,60 @@ app.post("/api/emails/sync", async (req, res) => {
   }
 });
 
+app.post("/api/emails/sync-progress", async (req, res) => {
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("X-Accel-Buffering", "no");
+
+  const sendEvent = (event) => {
+    res.write(`${JSON.stringify(event)}\n`);
+  };
+
+  try {
+    const emails = await fetchEmails(req.body || {}, (event) => {
+      sendEvent({ type: "progress", ...event });
+    });
+
+    sendEvent({ type: "result", ok: true, emails });
+    res.end();
+  } catch (error) {
+    sendEvent({ type: "error", ok: false, error: error.message });
+    res.end();
+  }
+});
+
 app.post("/api/emails/delete", async (req, res) => {
   const { cfg, uids } = req.body || {};
 
   try {
-    if (!Array.isArray(uids) || !uids.length) {
-      throw new Error("No emails were selected.");
-    }
-
-    await withImap(cfg, async (client, imapConfig) => {
-      const lock = await client.getMailboxLock(imapConfig.folder);
-      const trashPath = await findTrashMailbox(client);
-      try {
-        await client.messageMove(uids, trashPath, { uid: true });
-      } finally {
-        lock.release();
-      }
-    });
-
-    res.json({ ok: true, deleted: uids.length });
+    const result = await deleteEmails(cfg, uids);
+    res.json({ ok: true, deleted: result.deleted });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/emails/delete-progress", async (req, res) => {
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("X-Accel-Buffering", "no");
+
+  const { cfg, uids } = req.body || {};
+
+  const sendEvent = (event) => {
+    res.write(`${JSON.stringify(event)}\n`);
+  };
+
+  try {
+    const result = await deleteEmails(cfg, uids, (event) => {
+      sendEvent({ type: "progress", ...event });
+    });
+
+    sendEvent({ type: "result", ok: true, deleted: result.deleted });
+    res.end();
+  } catch (error) {
+    sendEvent({ type: "error", ok: false, error: error.message });
+    res.end();
   }
 });
 
@@ -643,6 +810,74 @@ app.post("/api/ai/brief", async (req, res) => {
   }
 });
 
+app.post("/api/ai/learning-brief", async (req, res) => {
+  const { apiKey, model, provider, emails } = req.body || {};
+
+  try {
+    if (!Array.isArray(emails) || !emails.length) {
+      throw new Error("No learning emails available for summary.");
+    }
+
+    const payload = emails.slice(0, 24).map((email) => ({
+      uid: String(email.uid),
+      from: email.from,
+      subject: email.subj,
+      preview: buildCleanPreview(email.prev, 180),
+      body: cleanNewsletterText(String(email.body || "")).slice(0, 1200)
+    }));
+
+    if (!apiKey) {
+      const summaries = payload.map((email) => ({
+        uid: email.uid,
+        summary: buildCleanPreview(
+          `${email.subject || "Newsletter update"}. ${email.preview || email.body || ""}`,
+          180
+        )
+      }));
+      return res.json({ ok: true, summaries, fallback: true });
+    }
+
+    const content = await callAI({
+      provider,
+      apiKey,
+      model,
+      maxTokens: 1000,
+      responseFormat: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You summarize learning-oriented newsletters for a busy reader.",
+            "Return strict JSON with shape: {\"summaries\":[{\"uid\":\"abc\",\"summary\":\"one sentence\"}]}",
+            "Rules:",
+            "- Write exactly one concise sentence per email.",
+            "- Focus on what the newsletter teaches, announces, or covers.",
+            "- Do not mention links, unsubscribe text, or marketing boilerplate.",
+            "- Ignore HTML fragments, tracking URLs, and email template scaffolding.",
+            "- Keep each summary under 24 words."
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload, null, 2)
+        }
+      ]
+    });
+
+    const parsed = JSON.parse(extractJsonBlock(content));
+    const summaries = (Array.isArray(parsed.summaries) ? parsed.summaries : [])
+      .map((item) => ({
+        uid: String(item.uid),
+        summary: String(item.summary || "").trim()
+      }))
+      .filter((item) => item.uid && item.summary);
+
+    res.json({ ok: true, summaries });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
 app.post("/api/ai/strategy", async (req, res) => {
   const { apiKey, model, provider, emails, prompt } = req.body || {};
 
@@ -724,7 +959,7 @@ app.post("/api/ai/organize", async (req, res) => {
     const safeDecisions = payload
       .map((email) => ({
         uid: Number(email.uid),
-        ...classifyPresetDecision(email)
+        ...classifyEmailDecision(email)
       }))
       .filter((decision) =>
         decision.uid &&
@@ -795,6 +1030,17 @@ app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.listen(PORT, () => {
-  console.log(`Luci's Inbox Helper local server running at http://localhost:${PORT}/`);
-});
+export { app, HOST, PORT };
+
+export function startServer(host = HOST, port = PORT) {
+  return app.listen(port, host, () => {
+    console.log(`Luci's Inbox Helper local server running at http://${host}:${port}/`);
+    if (host === "127.0.0.1") {
+      console.log(`Open http://localhost:${port}/ in your browser.`);
+    }
+  });
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  startServer();
+}

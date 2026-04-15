@@ -844,6 +844,8 @@ body {
                 <button class="btn" onclick="toggleStarSelected()" id="btn-star">star</button>
                 <button class="btn" onclick="summarizeEmail()" id="btn-summarize">summarize</button>
                 <button class="btn" onclick="draftReplySelected()" id="btn-draft">draft reply</button>
+                <button class="btn" onclick="copyReplyDraft()" id="btn-copy-reply" disabled>copy reply</button>
+                <button class="btn" onclick="openOriginalEmail()" id="btn-open-original">open original</button>
                 <button class="btn" onclick="createTaskSelected()">create task</button>
                 <button class="btn danger" onclick="deleteEmail()">delete</button>
                 <div class="detail-shortcuts">↑/↓ or j/k move · Enter open · x delete · Esc close · s star</div>
@@ -920,6 +922,7 @@ body {
 
           <div class="settings-section">
             <div class="settings-section-title">01 · email connection</div>
+            <div class="form-help" style="margin-bottom:10px">Passwords stay only in this browser tab for the current session. Luci does not save IMAP secrets to local storage.</div>
             <div class="email-accounts-editor" id="email-accounts-editor"></div>
             <div class="settings-actions" style="padding-top:10px">
               <button class="btn" type="button" onclick="addEmailAccount()">add email</button>
@@ -950,7 +953,8 @@ body {
                 <input class="form-input" id="ai-key" type="password" placeholder="sk-…">
               </div>
             </div>
-            <div class="form-help" id="ai-help"></div>
+            <div class="form-help">API keys stay only in memory for the current browser tab and are not saved after refresh.</div>
+            <div class="form-help" id="ai-help" style="margin-top:6px"></div>
           </div>
 
           <div class="settings-section">
@@ -993,6 +997,8 @@ import {
 } from "./decision-rules.js";
 
 const API_BASE = location.protocol === "file:" ? "http://localhost:3030" : "";
+const SETTINGS_STORAGE_KEY = "luci-settings-v3";
+const LEGACY_SETTINGS_STORAGE_KEYS = ["luci-settings-v2"];
 const AI_HINTS = {
   openai: 'Use an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a>.',
   anthropic: 'Use an Anthropic API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.',
@@ -1122,6 +1128,33 @@ function createEmailAccountId() {
 
 function esc(value) {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function sanitizePersistedSettings(value = {}) {
+  const saved = value && typeof value === "object" ? value : {};
+  return {
+    emailAccounts: normalizeEmailAccounts(saved.emailAccounts, {}).map((account) => ({
+      ...account,
+      pass: ""
+    })),
+    aiProvider: String(saved.aiProvider || state.settings.aiProvider || "openai"),
+    aiModel: String(saved.aiModel || state.settings.aiModel || "gpt-4o"),
+    learningWhitelist: String(saved.learningWhitelist || ""),
+    customCategories: normalizeCustomCategories(saved.customCategories)
+  };
+}
+
+function cleanEmailTextForDisplay(value = "") {
+  return String(value || "")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, "$1")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/<!doctype html>/gi, " ")
+    .replace(/insert hidden preheader text here\.?/gi, " ")
+    .replace(/[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\u3164\ufeff\uffa0]/g, " ")
+    .replace(/\b(unsubscribe|view in browser|manage preferences|privacy policy|terms of service)\b[\s\S]*/gi, " ")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function sleep(ms) {
@@ -1305,9 +1338,14 @@ async function deleteEmailsWithProgress(payload) {
 
 function loadSettings() {
   try {
-    const saved = JSON.parse(localStorage.getItem("luci-settings-v2") || "{}");
-    state.settings = { ...state.settings, ...saved };
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
+      || LEGACY_SETTINGS_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean)
+      || "{}";
+    const saved = JSON.parse(raw);
+    state.settings = { ...state.settings, ...sanitizePersistedSettings(saved) };
   } catch (error) {}
+  LEGACY_SETTINGS_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+  saveToStorage();
   state.settings.emailAccounts = normalizeEmailAccounts(state.settings.emailAccounts, state.settings);
   applySettingsToForm();
   updateStepCards();
@@ -1321,7 +1359,7 @@ function loadSettings() {
 }
 
 function saveToStorage() {
-  localStorage.setItem("luci-settings-v2", JSON.stringify(state.settings));
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(sanitizePersistedSettings(state.settings)));
 }
 
 function normalizeEmailAccounts(values = [], fallback = {}) {
@@ -1815,7 +1853,7 @@ function saveSettings() {
   renderCategoriesView();
   renderRulesView();
   ensureLearningSummaries();
-  toast("settings saved");
+  toast("settings saved without secrets");
 }
 
 function hasEmailConfig() {
@@ -2055,7 +2093,7 @@ function selectEmail(id) {
   document.getElementById("detail-subject").textContent = email.subj || "(no subject)";
   document.getElementById("detail-from").textContent = `${email.from || "Unknown"} <${email.addr || "no-address"}>`;
   document.getElementById("detail-date").textContent = email.date || "";
-  document.getElementById("detail-body").textContent = email.body || email.prev || "";
+  document.getElementById("detail-body").textContent = cleanEmailTextForDisplay(email.body || email.prev || "");
   document.getElementById("btn-star").textContent = email.star ? "unstar" : "star";
   renderDecisionCards(email);
   renderSummaryAndDraft(email);
@@ -2096,6 +2134,7 @@ function toggleWhy() {
 function renderSummaryAndDraft(email) {
   const summary = document.getElementById("detail-summary");
   const draft = document.getElementById("detail-draft");
+  const copyBtn = document.getElementById("btn-copy-reply");
   if (email.aiSummary) {
     summary.style.display = "block";
     document.getElementById("detail-summary-text").textContent = email.aiSummary;
@@ -2109,6 +2148,65 @@ function renderSummaryAndDraft(email) {
   } else {
     draft.style.display = "none";
   }
+  if (copyBtn) copyBtn.disabled = !(email.replyDraft || email.taskDraft);
+}
+
+function originalMailboxUrl(email) {
+  const account = findAccountById(email?.accountId);
+  const provider = account?.prov || "";
+  const subject = encodeURIComponent(email?.subj || "");
+  const from = encodeURIComponent(email?.addr || email?.from || "");
+  const q = encodeURIComponent(`${email?.subj || ""} ${email?.addr || email?.from || ""}`.trim());
+
+  if (provider === "gmail") {
+    return `https://mail.google.com/mail/u/0/#search/${q}`;
+  }
+  if (provider === "outlook") {
+    return `https://outlook.office.com/mail/search/id/${q}`;
+  }
+  if (provider === "yahoo") {
+    return `https://mail.yahoo.com/d/search/keyword=${q}`;
+  }
+  if (provider === "qq") {
+    return "https://mail.qq.com/";
+  }
+  if (provider === "163") {
+    return "https://mail.163.com/";
+  }
+  return `mailto:${email?.addr || ""}?subject=Re:%20${subject}`;
+}
+
+async function copyReplyDraft() {
+  const email = getSelectedEmail();
+  const text = email?.replyDraft || email?.taskDraft || "";
+  if (!text) {
+    toast("draft a reply first");
+    return;
+  }
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "absolute";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    toast("reply copied");
+  } catch (error) {
+    toast("could not copy reply");
+  }
+}
+
+function openOriginalEmail() {
+  const email = getSelectedEmail();
+  if (!email) return;
+  window.open(originalMailboxUrl(email), "_blank", "noopener,noreferrer");
 }
 
 async function syncEmails() {
@@ -2775,6 +2873,8 @@ Object.assign(window, {
   toggleStarSelected,
   summarizeEmail,
   draftReplySelected,
+  copyReplyDraft,
+  openOriginalEmail,
   createTaskSelected,
   deleteEmail,
   testConnections,
