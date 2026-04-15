@@ -60,6 +60,7 @@ npm start
 
 ## What Luci does
 <img width="400" height="240" alt="0415 (1)" src="https://github.com/user-attachments/assets/11a0e3ba-3b56-4243-a595-c3f0c2878ffa" />
+
 - syncs your inbox locally
 - surfaces urgent messages first
 - highlights emails waiting on your reply
